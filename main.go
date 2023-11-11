@@ -10,6 +10,8 @@ import (
 	"go/types"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -67,9 +69,9 @@ func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}(value {{.FieldTypeName}}) bo
 
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.{{.FieldName}}),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.{{.FieldName}} = value
 
@@ -85,16 +87,16 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	operation := "Set"
+	operation := ChangeOperationSet
 	if len(value) == 0 {
-		operation = "Clear"
+		operation = ChangeOperationClear
 	}
 
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.{{.FieldName}}),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.{{.FieldName}} = value
 
@@ -108,9 +110,9 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value *{{.FieldTypeName}}) bool
 
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
-		Operation: "Set",
-		OldValue:  fmt.Sprintf("%v", m.inner.{{.FieldName}}),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationSet,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.{{.FieldName}} = *value
 
@@ -130,16 +132,24 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	operation := "Set"
-	if value == nil {
-		operation = "Clear"
+	operation := ChangeOperationClear
+	valueStr := fmt.Sprintf("%+v", value)
+	oldValueStr := fmt.Sprintf("%+v", m.inner.{{.FieldName}})
+
+	if value != nil {
+		operation = ChangeOperationSet
+		valueStr = fmt.Sprintf("%+v", *value)
+	}
+
+	if m.inner.{{.FieldName}} != nil {
+		oldValueStr = fmt.Sprintf("%+v", *m.inner.{{.FieldName}})
 	}
 
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.{{.FieldName}}),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  oldValueStr,
+		NewValue:  valueStr,
 	})
 	m.inner.{{.FieldName}} = value
 
@@ -170,9 +180,8 @@ func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}At(index int) *Mutator{{.Fiel
 func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
-		Operation: "Added",
-		OldValue:  "",
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}, value...)
 }
@@ -181,9 +190,8 @@ func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPo
 func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
-		Operation: "Removed",
-		OldValue:  fmt.Sprintf("%v", m.inner.{{.FieldName}}[index]),
-		NewValue:  "",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[index]),
 	})
 	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}[:index], m.inner.{{.FieldName}}[index+1:]...)
 }
@@ -193,7 +201,7 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
 // Mutate{{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}} {
 
-	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
+	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, NewChainedChangeLogger("{{.FieldName}} ", m.changes))
 }
 `
 )
@@ -219,61 +227,21 @@ type mutateFunctionData struct {
 	FieldTypeIsPointer bool
 }
 
-func trimPackagePrefix(typeName string, pkg string) string {
-	start := strings.LastIndexAny(typeName, "[]*")
-	if start == -1 {
-		start = 0
-	} else {
-		start++
-	}
-
-	dot := strings.LastIndex(typeName, ".")
-	if dot == -1 {
-		return typeName
-	}
-
-	if typeName[start:dot] == pkg {
-		return typeName[:start] + typeName[dot+1:]
-	}
-
-	return typeName
-}
-
-func trimAllPrefixes(typeName string, pkg string) string {
-	start := strings.LastIndexAny(typeName, "[]*")
-	if start == -1 {
-		start = 0
-	} else {
-		start++
-	}
-
-	dot := strings.LastIndex(typeName, ".")
-	if dot == -1 {
-		return typeName[start:]
-	}
-
-	if typeName[start:dot] == pkg {
-		return typeName[dot+1:]
-	}
-
-	return typeName
-}
-
 func Usage() {
 	_, _ = fmt.Fprintf(os.Stderr, "gomutate generates Go code to mutate a Go type.\n")
 	_, _ = fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	_, _ = fmt.Fprintf(os.Stderr, "\tgomutate [flags] -type Type [<directory>]\n")
-	_, _ = fmt.Fprintf(os.Stderr, "\ndirectory: \".\" if unspecified\n\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\tgomutate [flags] -type Type <file.go>...\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\nall files must be in the same directory\n\n")
 	_, _ = fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
 
 var (
-	flagType = flag.String("type", "", "list of types separated by comma (required)")
+	flagType = flag.String("type", "", "type to generate code for (required)")
 )
 
 func main() {
-	log.SetPrefix("gomutations: ")
+	log.SetPrefix("gomutate: ")
 	flag.Usage = Usage
 	flag.Parse()
 	if len(*flagType) == 0 {
@@ -281,12 +249,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	directory := "."
-	if len(flag.Args()) > 0 {
-		directory = flag.Args()[0]
+	if len(flag.Args()) == 0 {
+		fmt.Fprintf(os.Stderr, "Specify at least one go file\n")
+		flag.Usage()
+		os.Exit(1)
 	}
 
-	mainFilename := "acme.go"
+	// get directory of all files
+	filenames := flag.Args()
+
+	directory := path.Dir(filenames[0])
+	for _, filename := range filenames {
+		if path.Dir(filename) != directory {
+			fmt.Fprintf(os.Stderr, "All files must be in the same directory\n")
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
 
 	loadAllSyntax := packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo
 
@@ -314,10 +293,12 @@ func main() {
 	// gather all struct declarations
 	var typeSpecs []ast.Node
 
-	var info types.Info
+	var mainDecl *ast.TypeSpec
+
+	exprTypeMap := make(map[ast.Expr]types.TypeAndValue)
 
 	for _, filename := range pkg.GoFiles {
-		if !strings.HasSuffix(filename, "/"+mainFilename) {
+		if !isSelectedFilename(filename, filenames) {
 			continue
 		}
 
@@ -326,20 +307,25 @@ func main() {
 			log.Fatalf("failed to parse file %s: %s", filename, err)
 		}
 
-		// Run type checker
-		info = types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-
-		_, err = (&types.Config{
-			Importer: importer.Default(),
-		}).Check(packageName, fset, []*ast.File{node}, &info)
+		info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+		_, err = (&types.Config{Importer: importer.Default()}).Check(packageName, fset, []*ast.File{node}, &info)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		// merge onto exprTypeMap
+		for expr, typeAndValue := range info.Types {
+			exprTypeMap[expr] = typeAndValue
 		}
 
 		ast.Inspect(node, func(n ast.Node) bool {
 			tspec, isTypeSpec := n.(*ast.TypeSpec)
 			if !isTypeSpec {
 				return true
+			}
+
+			if tspec.Name.Name == targetTypeName {
+				mainDecl = tspec
 			}
 
 			_, isStructDecl := tspec.Type.(*ast.StructType)
@@ -350,15 +336,6 @@ func main() {
 			typeSpecs = append(typeSpecs, n)
 			return true
 		})
-	}
-
-	var mainDecl *ast.TypeSpec
-	for _, node := range typeSpecs {
-		spec := node.(*ast.TypeSpec)
-		if spec.Name.Name == targetTypeName {
-			mainDecl = spec
-			break
-		}
 	}
 
 	mainMutator := mutatorData{
@@ -401,17 +378,17 @@ func main() {
 		})
 	}
 
-	templateSteps = handleStructType(templateSteps, packageName, mainDecl, info.Types, typeSpecs)
+	templateSteps = handleStructType(templateSteps, packageName, mainDecl, exprTypeMap, typeSpecs)
 
 	for i, step := range templateSteps {
 		tmpl, err := template.New(fmt.Sprintf("template%d", i)).Parse(step.template)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		err = tmpl.Execute(os.Stdout, step.data)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 }
@@ -518,17 +495,62 @@ func handleStructType(
 	return steps
 }
 
-func isBasic(t types.Type) bool {
-	switch x := t.(type) {
-	case *types.Basic:
-		return true
-	case *types.Slice:
-		return true
-	case *types.Map:
-		return true
-	case *types.Pointer:
-		return isBasic(x.Elem())
-	default:
-		return false
+func isSelectedFilename(file string, list []string) bool {
+	for _, item := range list {
+		itemPath, err := filepath.Abs(item)
+		if err != nil {
+			continue
+		}
+
+		filePath, err := filepath.Abs(file)
+		if err != nil {
+			continue
+		}
+
+		if filePath == itemPath {
+			return true
+		}
 	}
+
+	return false
+}
+
+func trimPackagePrefix(typeName string, pkg string) string {
+	start := strings.LastIndexAny(typeName, "[]*")
+	if start == -1 {
+		start = 0
+	} else {
+		start++
+	}
+
+	dot := strings.LastIndex(typeName, ".")
+	if dot == -1 {
+		return typeName
+	}
+
+	if typeName[start:dot] == pkg {
+		return typeName[:start] + typeName[dot+1:]
+	}
+
+	return typeName
+}
+
+func trimAllPrefixes(typeName string, pkg string) string {
+	start := strings.LastIndexAny(typeName, "[]*")
+	if start == -1 {
+		start = 0
+	} else {
+		start++
+	}
+
+	dot := strings.LastIndex(typeName, ".")
+	if dot == -1 {
+		return typeName[start:]
+	}
+
+	if typeName[start:dot] == pkg {
+		return typeName[dot+1:]
+	}
+
+	return typeName
 }

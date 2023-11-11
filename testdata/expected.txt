@@ -1,0 +1,9 @@
+YearOfBirth Updated: 2018 -> 2019
+Address Clear
+Address Set: {Street:Liverpool Street Number:300 City:London Zip:45001 Location:<nil>}
+Vat Type Updated: Company -> Company Ltd.
+Address Street Updated: Liverpool Street -> Baker Street
+Address Location Set: UK
+Employees Name Updated: John Doe -> John Smith
+Employees Projects Name Updated: Project 1 -> Project 1 - Updated
+Employees Added: [Roger Smith - CFO - 90000 - 2023-10-30 13:14:15 +0000 UTC - []]

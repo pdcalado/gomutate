@@ -80,9 +80,9 @@ func (m *MutatorAcme) MutateName(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Name",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Name),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Name = value
 
@@ -97,9 +97,9 @@ func (m *MutatorAcme) MutateYearOfBirth(value int) bool {
 
 	m.changes.Append(Change{
 		FieldName: "YearOfBirth",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.YearOfBirth),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.YearOfBirth),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.YearOfBirth = value
 
@@ -114,9 +114,9 @@ func (m *MutatorEmployee) MutateName(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Name",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Name),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Name = value
 
@@ -131,9 +131,9 @@ func (m *MutatorEmployee) MutatePosition(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Position",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Position),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Position),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Position = value
 
@@ -148,9 +148,9 @@ func (m *MutatorEmployee) MutateWage(value int) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Wage",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Wage),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Wage),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Wage = value
 
@@ -165,9 +165,9 @@ func (m *MutatorEmployee) MutateJoinedAt(value time.Time) bool {
 
 	m.changes.Append(Change{
 		FieldName: "JoinedAt",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.JoinedAt),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.JoinedAt),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.JoinedAt = value
 
@@ -182,9 +182,9 @@ func (m *MutatorProject) MutateName(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Name",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Name),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Name = value
 
@@ -199,9 +199,9 @@ func (m *MutatorProject) MutateValue(value int) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Value",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Value),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Value),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Value = value
 
@@ -216,9 +216,9 @@ func (m *MutatorProject) MutateStartedAt(value time.Time) bool {
 
 	m.changes.Append(Change{
 		FieldName: "StartedAt",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.StartedAt),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.StartedAt),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.StartedAt = value
 
@@ -233,9 +233,9 @@ func (m *MutatorProject) MutateFinishedAt(value time.Time) bool {
 
 	m.changes.Append(Change{
 		FieldName: "FinishedAt",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.FinishedAt),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.FinishedAt),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.FinishedAt = value
 
@@ -249,16 +249,16 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 		return false
 	}
 
-	operation := "Set"
+	operation := ChangeOperationSet
 	if len(value) == 0 {
-		operation = "Clear"
+		operation = ChangeOperationClear
 	}
 
 	m.changes.Append(Change{
 		FieldName: "Projects",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.Projects),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  fmt.Sprintf("%+v", m.inner.Projects),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Projects = value
 
@@ -274,9 +274,8 @@ func (m *MutatorEmployee) MutateProjectsAt(index int) *MutatorProject {
 func (m *MutatorEmployee) AppendProjects(value ...Project) {
 	m.changes.Append(Change{
 		FieldName: "Projects",
-		Operation: "Added",
-		OldValue:  "",
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Projects = append(m.inner.Projects, value...)
 }
@@ -285,9 +284,8 @@ func (m *MutatorEmployee) AppendProjects(value ...Project) {
 func (m *MutatorEmployee) RemoveProjects(index int) {
 	m.changes.Append(Change{
 		FieldName: "Projects",
-		Operation: "Removed",
-		OldValue:  fmt.Sprintf("%v", m.inner.Projects[index]),
-		NewValue:  "",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Projects[index]),
 	})
 	m.inner.Projects = append(m.inner.Projects[:index], m.inner.Projects[index+1:]...)
 }
@@ -299,16 +297,16 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 		return false
 	}
 
-	operation := "Set"
+	operation := ChangeOperationSet
 	if len(value) == 0 {
-		operation = "Clear"
+		operation = ChangeOperationClear
 	}
 
 	m.changes.Append(Change{
 		FieldName: "Employees",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.Employees),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  fmt.Sprintf("%+v", m.inner.Employees),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Employees = value
 
@@ -324,9 +322,8 @@ func (m *MutatorAcme) MutateEmployeesAt(index int) *MutatorEmployee {
 func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
 	m.changes.Append(Change{
 		FieldName: "Employees",
-		Operation: "Added",
-		OldValue:  "",
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Employees = append(m.inner.Employees, value...)
 }
@@ -335,9 +332,8 @@ func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
 func (m *MutatorAcme) RemoveEmployees(index int) {
 	m.changes.Append(Change{
 		FieldName: "Employees",
-		Operation: "Removed",
-		OldValue:  fmt.Sprintf("%v", m.inner.Employees[index]),
-		NewValue:  "",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Employees[index]),
 	})
 	m.inner.Employees = append(m.inner.Employees[:index], m.inner.Employees[index+1:]...)
 }
@@ -350,9 +346,9 @@ func (m *MutatorAddress) MutateStreet(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Street",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Street),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Street),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Street = value
 
@@ -367,9 +363,9 @@ func (m *MutatorAddress) MutateNumber(value int) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Number",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Number),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Number = value
 
@@ -384,9 +380,9 @@ func (m *MutatorAddress) MutateCity(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "City",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.City),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.City),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.City = value
 
@@ -401,9 +397,9 @@ func (m *MutatorAddress) MutateZip(value int) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Zip",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Zip),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Zip),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Zip = value
 
@@ -421,16 +417,24 @@ func (m *MutatorAddress) SetLocation(value *string) bool {
 		return false
 	}
 
-	operation := "Set"
-	if value == nil {
-		operation = "Clear"
+	operation := ChangeOperationClear
+	valueStr := fmt.Sprintf("%+v", value)
+	oldValueStr := fmt.Sprintf("%+v", m.inner.Location)
+
+	if value != nil {
+		operation = ChangeOperationSet
+		valueStr = fmt.Sprintf("%+v", *value)
+	}
+
+	if m.inner.Location != nil {
+		oldValueStr = fmt.Sprintf("%+v", *m.inner.Location)
 	}
 
 	m.changes.Append(Change{
 		FieldName: "Location",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.Location),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  oldValueStr,
+		NewValue:  valueStr,
 	})
 	m.inner.Location = value
 
@@ -448,16 +452,24 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 		return false
 	}
 
-	operation := "Set"
-	if value == nil {
-		operation = "Clear"
+	operation := ChangeOperationClear
+	valueStr := fmt.Sprintf("%+v", value)
+	oldValueStr := fmt.Sprintf("%+v", m.inner.Address)
+
+	if value != nil {
+		operation = ChangeOperationSet
+		valueStr = fmt.Sprintf("%+v", *value)
+	}
+
+	if m.inner.Address != nil {
+		oldValueStr = fmt.Sprintf("%+v", *m.inner.Address)
 	}
 
 	m.changes.Append(Change{
 		FieldName: "Address",
 		Operation: operation,
-		OldValue:  fmt.Sprintf("%v", m.inner.Address),
-		NewValue:  fmt.Sprintf("%v", value),
+		OldValue:  oldValueStr,
+		NewValue:  valueStr,
 	})
 	m.inner.Address = value
 
@@ -483,9 +495,9 @@ func (m *MutatorVat) MutateNumber(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Number",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Number),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Number = value
 
@@ -500,9 +512,9 @@ func (m *MutatorVat) MutateType(value string) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Type",
-		Operation: "Updated",
-		OldValue:  fmt.Sprintf("%v", m.inner.Type),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationUpdated,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Type),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Type = value
 
@@ -514,9 +526,9 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 
 	m.changes.Append(Change{
 		FieldName: "Vat",
-		Operation: "Set",
-		OldValue:  fmt.Sprintf("%v", m.inner.Vat),
-		NewValue:  fmt.Sprintf("%v", value),
+		Operation: ChangeOperationSet,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Vat),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Vat = *value
 
@@ -526,5 +538,5 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 // MutateVat returns a mutator for Vat of the Acme object.
 func (m *MutatorAcme) MutateVat() *MutatorVat {
 
-	return NewMutatorVat(&m.inner.Vat, NewChainedChangeLogger(fmt.Sprintf("Vat "), m.changes))
+	return NewMutatorVat(&m.inner.Vat, NewChainedChangeLogger("Vat ", m.changes))
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -8,6 +9,9 @@ import (
 )
 
 func main() {
+	// use a fixed date as now
+	now := time.Date(2023, 10, 30, 13, 14, 15, 0, time.UTC)
+
 	acme := Acme{
 		Name:        "Acme Inc.",
 		YearOfBirth: 2018,
@@ -16,19 +20,19 @@ func main() {
 				Name:     "John Doe",
 				Position: "CEO",
 				Wage:     100000,
-				JoinedAt: time.Now(),
+				JoinedAt: now,
 				Projects: []Project{
 					{
 						Name:       "Project 1",
 						Value:      100000,
-						StartedAt:  time.Now(),
-						FinishedAt: time.Now().Add(time.Hour * 24 * 30),
+						StartedAt:  now,
+						FinishedAt: now.Add(time.Hour * 24 * 30),
 					},
 					{
 						Name:       "Project 2",
 						Value:      200000,
-						StartedAt:  time.Now(),
-						FinishedAt: time.Now().Add(time.Hour * 24 * 30),
+						StartedAt:  now,
+						FinishedAt: now.Add(time.Hour * 24 * 30),
 					},
 				},
 			},
@@ -36,19 +40,19 @@ func main() {
 				Name:     "Jane Doe",
 				Position: "CTO",
 				Wage:     80000,
-				JoinedAt: time.Now(),
+				JoinedAt: now,
 				Projects: []Project{
 					{
 						Name:       "Project 3",
 						Value:      300000,
-						StartedAt:  time.Now(),
-						FinishedAt: time.Now().Add(time.Hour * 24 * 30),
+						StartedAt:  now,
+						FinishedAt: now.Add(time.Hour * 24 * 30),
 					},
 					{
 						Name:       "Project 4",
 						Value:      400000,
-						StartedAt:  time.Now(),
-						FinishedAt: time.Now().Add(time.Hour * 24 * 30),
+						StartedAt:  now,
+						FinishedAt: now.Add(time.Hour * 24 * 30),
 					},
 				},
 			},
@@ -89,12 +93,12 @@ func main() {
 		Name:     "Roger Smith",
 		Position: "CFO",
 		Wage:     90000,
-		JoinedAt: time.Now(),
+		JoinedAt: now,
 		Projects: nil,
 	})
 
 	for _, change := range mutator.FormatChanges() {
-		println(change)
+		fmt.Println(change)
 	}
 
 	t := &testing.T{}
