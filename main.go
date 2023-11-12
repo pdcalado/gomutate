@@ -141,7 +141,7 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 	m.changes.Append(Change{
 		FieldName: "{{.FieldName}}",
 		Operation: ChangeOperationRemoved,
-		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[key]),
+		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.{{.FieldName}}[key]),
 	})
 	delete(m.inner.{{.FieldName}}, key)
 
