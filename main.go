@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -79,8 +80,8 @@ func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}(value {{.FieldTypeName}}) bo
 }
 `
 
-	mutateSetTemplate = `
-// Mutate{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
+	mapSetTemplate = `
+// Set{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
 func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool {
 
 	if len(value) == 0 && len(m.inner.{{.FieldName}}) == 0 {
@@ -104,8 +105,99 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 }
 `
 
+	mapInsertTemplate = `
+// Insert{{.FieldName}} inserts a {{.FieldName}} map element of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) Insert{{.FieldName}}(
+	key {{if .FieldKeyTypeIsPointer}}*{{end}}{{.FieldKeyTypeName}},
+	value {{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}},
+) bool {
+	currentValue, exists := m.inner.{{.FieldName}}[key]
+	if exists && currentValue == value {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "{{.FieldName}}",
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+	})
+
+	if m.inner.{{.FieldName}} == nil {
+		m.inner.{{.FieldName}} = make(map[{{if .FieldKeyTypeIsPointer}}*{{end}}{{.FieldKeyTypeName}}]{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}})
+	}
+
+	m.inner.{{.FieldName}}[key] = value
+
+	return true
+}
+
+// Remove{{.FieldName}} removes a {{.FieldName}} map element of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPointer}}*{{end}}{{.FieldKeyTypeName}}) bool {
+	_, exists := m.inner.{{.FieldName}}[key]
+	if !exists {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "{{.FieldName}}",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[key]),
+	})
+	delete(m.inner.{{.FieldName}}, key)
+
+	return true
+}
+`
+
+	sliceSetTemplate = `
+// Set{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
+func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool {
+
+	if len(value) == 0 && len(m.inner.{{.FieldName}}) == 0 {
+		return false
+	}
+
+	operation := ChangeOperationSet
+	if len(value) == 0 {
+		operation = ChangeOperationClear
+	}
+
+	m.changes.Append(Change{
+		FieldName: "{{.FieldName}}",
+		Operation: operation,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
+		NewValue:  fmt.Sprintf("%+v", value),
+	})
+	m.inner.{{.FieldName}} = value
+
+	return true
+}
+`
+
+	sliceAppendTemplate = `
+// Append{{.FieldName}} appends a {{.FieldName}} element of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
+	m.changes.Append(Change{
+		FieldName: "{{.FieldName}}",
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("%+v", value),
+	})
+	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}, value...)
+}
+
+// Remove{{.FieldName}} removes a {{.FieldName}} element of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
+	m.changes.Append(Change{
+		FieldName: "{{.FieldName}}",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[index]),
+	})
+	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}[:index], m.inner.{{.FieldName}}[index+1:]...)
+}
+`
+
 	mutateSetObjTemplate = `
-// Mutate{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
+// Set{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
 func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value *{{.FieldTypeName}}) bool {
 
 	m.changes.Append(Change{
@@ -170,30 +262,10 @@ func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}}
 }
 `
 
-	mutateSliceTemplate = `
+	mutateSliceElementTemplate = `
 // Mutate{{.FieldName}}At returns a mutator for {{.FieldName}} element at index of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
 	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
-}
-
-// Append{{.FieldName}} appends a {{.FieldName}} element of the {{.TypeName}} object.
-func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
-	m.changes.Append(Change{
-		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationAdded,
-		NewValue:  fmt.Sprintf("%+v", value),
-	})
-	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}, value...)
-}
-
-// Remove{{.FieldName}} removes a {{.FieldName}} element of the {{.TypeName}} object.
-func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
-	m.changes.Append(Change{
-		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationRemoved,
-		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[index]),
-	})
-	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}[:index], m.inner.{{.FieldName}}[index+1:]...)
 }
 `
 
@@ -202,6 +274,16 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
 func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}} {
 
 	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, NewChainedChangeLogger("{{.FieldName}} ", m.changes))
+}
+`
+
+	mutateMapElementTemplate = `
+// Mutate{{.FieldName}}WithKey returns a mutator for {{.FieldName}} map element {{.TypeName}} object with given key.
+func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}WithKey(key {{.FieldKeyTypeName}}) *Mutator{{.FieldTypeName}} {
+	return NewMutator{{.FieldTypeName}}(
+		{{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[key],
+		NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes),
+	)
 }
 `
 )
@@ -221,10 +303,12 @@ type mutatorData struct {
 }
 
 type mutateFunctionData struct {
-	TypeName           string
-	FieldName          string
-	FieldTypeName      string
-	FieldTypeIsPointer bool
+	TypeName              string
+	FieldName             string
+	FieldKeyTypeName      string
+	FieldTypeName         string
+	FieldTypeIsPointer    bool
+	FieldKeyTypeIsPointer bool
 }
 
 func Usage() {
@@ -378,7 +462,7 @@ func main() {
 		})
 	}
 
-	templateSteps = handleStructType(templateSteps, packageName, mainDecl, exprTypeMap, typeSpecs)
+	templateSteps = handleStructType(templateSteps, packageName, mainDecl, exprTypeMap, typeSpecs, make(map[string]bool))
 
 	for i, step := range templateSteps {
 		tmpl, err := template.New(fmt.Sprintf("template%d", i)).Parse(step.template)
@@ -399,9 +483,17 @@ func handleStructType(
 	structSpec *ast.TypeSpec,
 	typesInfo map[ast.Expr]types.TypeAndValue,
 	typeSpecs []ast.Node,
+	handledTypes map[string]bool,
 ) []templateStep {
 
 	structType := structSpec.Type.(*ast.StructType)
+
+	_, exists := handledTypes[structSpec.Name.Name]
+	if exists {
+		return steps
+	}
+
+	handledTypes[structSpec.Name.Name] = true
 
 	for _, field := range structType.Fields.List {
 		if len(field.Names) == 0 {
@@ -415,22 +507,23 @@ func handleStructType(
 		trimmedTypeStr := trimAllPrefixes(ty.String(), packageName)
 		for _, spec := range typeSpecs {
 			if spec.(*ast.TypeSpec).Name.Name == trimmedTypeStr {
-				steps = handleStructType(steps, packageName, spec.(*ast.TypeSpec), typesInfo, typeSpecs)
+				steps = handleStructType(steps, packageName, spec.(*ast.TypeSpec), typesInfo, typeSpecs, handledTypes)
 				locallyDefined = true
 			}
 		}
 
 		tmpl := mutateFieldTemplate
 		isPointer := false
-		isSlice := false
 		isObject := false
+		isMap := false
 
 		switch ty.(type) {
 		case *types.Slice:
-			tmpl = mutateSetTemplate
-			isSlice = true
+			steps = append(steps, handleSlice(packageName, structSpec, field, ty, locallyDefined)...)
+			continue
 		case *types.Map:
-			tmpl = mutateSetTemplate
+			steps = append(steps, handleMap(packageName, structSpec, field, ty, locallyDefined)...)
+			continue
 		case *types.Pointer:
 			tmpl = mutateSetPtrTemplate
 			isPointer = true
@@ -466,20 +559,6 @@ func handleStructType(
 			})
 		}
 
-		if isSlice {
-			_, fieldTypeIsPointer := ty.(*types.Slice).Elem().Underlying().(*types.Pointer)
-
-			steps = append(steps, templateStep{
-				template: mutateSliceTemplate,
-				data: mutateFunctionData{
-					TypeName:           structSpec.Name.Name,
-					FieldName:          field.Names[0].Name,
-					FieldTypeName:      trimAllPrefixes(ty.String(), packageName),
-					FieldTypeIsPointer: fieldTypeIsPointer,
-				},
-			})
-		}
-
 		if isObject {
 			steps = append(steps, templateStep{
 				template: mutateObjTemplate,
@@ -490,9 +569,120 @@ func handleStructType(
 				},
 			})
 		}
+
+		if isMap {
+			_, fieldTypeIsPointer := ty.(*types.Map).Elem().Underlying().(*types.Pointer)
+
+			fieldKeyType := ty.(*types.Map).Key()
+
+			steps = append(steps, templateStep{
+				template: mutateMapElementTemplate,
+				data: mutateFunctionData{
+					TypeName:           structSpec.Name.Name,
+					FieldName:          field.Names[0].Name,
+					FieldKeyTypeName:   trimAllPrefixes(fieldKeyType.String(), packageName),
+					FieldTypeName:      trimAllPrefixes(ty.String(), packageName),
+					FieldTypeIsPointer: fieldTypeIsPointer,
+				},
+			})
+		}
 	}
 
 	return steps
+}
+
+func handleSlice(
+	packageName string,
+	structSpec *ast.TypeSpec,
+	field *ast.Field,
+	fieldType types.Type,
+	locallyDefined bool,
+) []templateStep {
+	_, fieldTypeIsPointer := fieldType.(*types.Slice).Elem().Underlying().(*types.Pointer)
+
+	steps := []templateStep{
+		{
+			template: sliceSetTemplate,
+			data: mutateFunctionData{
+				TypeName:      structSpec.Name.Name,
+				FieldName:     field.Names[0].Name,
+				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+			},
+		},
+		{
+			template: sliceAppendTemplate,
+			data: mutateFunctionData{
+				TypeName:           structSpec.Name.Name,
+				FieldName:          field.Names[0].Name,
+				FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+				FieldTypeIsPointer: fieldTypeIsPointer,
+			},
+		},
+	}
+
+	if !locallyDefined {
+		return steps
+	}
+
+	return append(steps, templateStep{
+		template: mutateSliceElementTemplate,
+		data: mutateFunctionData{
+			TypeName:           structSpec.Name.Name,
+			FieldName:          field.Names[0].Name,
+			FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+			FieldTypeIsPointer: fieldTypeIsPointer,
+		},
+	})
+}
+
+func handleMap(
+	packageName string,
+	structSpec *ast.TypeSpec,
+	field *ast.Field,
+	fieldType types.Type,
+	locallyDefined bool,
+) []templateStep {
+	_, fieldTypeIsPointer := fieldType.(*types.Map).Elem().Underlying().(*types.Pointer)
+
+	fieldKeyType := fieldType.(*types.Map).Key()
+	_, fieldKeyTypeIsPointer := fieldKeyType.Underlying().(*types.Pointer)
+
+	steps := []templateStep{
+		{
+			template: mapSetTemplate,
+			data: mutateFunctionData{
+				TypeName:      structSpec.Name.Name,
+				FieldName:     field.Names[0].Name,
+				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+			},
+		},
+		{
+			template: mapInsertTemplate,
+			data: mutateFunctionData{
+				TypeName:              structSpec.Name.Name,
+				FieldName:             field.Names[0].Name,
+				FieldKeyTypeName:      trimAllPrefixes(fieldKeyType.String(), packageName),
+				FieldTypeName:         trimAllPrefixes(fieldType.String(), packageName),
+				FieldTypeIsPointer:    fieldTypeIsPointer,
+				FieldKeyTypeIsPointer: fieldKeyTypeIsPointer,
+			},
+		},
+	}
+
+	if !locallyDefined {
+		return steps
+	}
+
+	return append(steps, templateStep{
+		template: mutateMapElementTemplate,
+		data: mutateFunctionData{
+			TypeName:           structSpec.Name.Name,
+			FieldName:          field.Names[0].Name,
+			FieldKeyTypeName:   trimAllPrefixes(fieldKeyType.String(), packageName),
+			FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+			FieldTypeIsPointer: fieldTypeIsPointer,
+		},
+	})
 }
 
 func isSelectedFilename(file string, list []string) bool {
@@ -515,24 +705,15 @@ func isSelectedFilename(file string, list []string) bool {
 	return false
 }
 
-func trimPackagePrefix(typeName string, pkg string) string {
-	start := strings.LastIndexAny(typeName, "[]*")
-	if start == -1 {
-		start = 0
-	} else {
-		start++
-	}
+func trimPackagePrefix(input, packageName string) string {
+	// Create a regular expression pattern to match the package prefix
+	pattern := `(^|\[|\*|\])` + packageName + `\.`
 
-	dot := strings.LastIndex(typeName, ".")
-	if dot == -1 {
-		return typeName
-	}
+	// Compile the regular expression pattern
+	regex := regexp.MustCompile(pattern)
 
-	if typeName[start:dot] == pkg {
-		return typeName[:start] + typeName[dot+1:]
-	}
-
-	return typeName
+	// Replace the package prefix with an empty string
+	return regex.ReplaceAllString(input, "$1")
 }
 
 func trimAllPrefixes(typeName string, pkg string) string {
@@ -544,7 +725,7 @@ func trimAllPrefixes(typeName string, pkg string) string {
 	}
 
 	dot := strings.LastIndex(typeName, ".")
-	if dot == -1 {
+	if dot == -1 || dot <= start {
 		return typeName[start:]
 	}
 

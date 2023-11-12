@@ -11,6 +11,8 @@ type Acme struct {
 	Employees   []*Employee
 	Address     *Address
 	Vat         Vat
+	Nicknames   map[string]*Employee
+	Equity      map[*Employee]int
 }
 
 type Address struct {

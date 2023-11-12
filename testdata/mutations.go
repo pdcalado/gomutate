@@ -242,7 +242,7 @@ func (m *MutatorProject) MutateFinishedAt(value time.Time) bool {
 	return true
 }
 
-// MutateProjects sets Projects of the Employee object
+// SetProjects sets Projects of the Employee object
 func (m *MutatorEmployee) SetProjects(value []Project) bool {
 
 	if len(value) == 0 && len(m.inner.Projects) == 0 {
@@ -265,11 +265,6 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 	return true
 }
 
-// MutateProjectsAt returns a mutator for Projects element at index of the Employee object.
-func (m *MutatorEmployee) MutateProjectsAt(index int) *MutatorProject {
-	return NewMutatorProject(&m.inner.Projects[index], NewChainedChangeLogger(fmt.Sprintf("Projects "), m.changes))
-}
-
 // AppendProjects appends a Projects element of the Employee object.
 func (m *MutatorEmployee) AppendProjects(value ...Project) {
 	m.changes.Append(Change{
@@ -290,7 +285,12 @@ func (m *MutatorEmployee) RemoveProjects(index int) {
 	m.inner.Projects = append(m.inner.Projects[:index], m.inner.Projects[index+1:]...)
 }
 
-// MutateEmployees sets Employees of the Acme object
+// MutateProjectsAt returns a mutator for Projects element at index of the Employee object.
+func (m *MutatorEmployee) MutateProjectsAt(index int) *MutatorProject {
+	return NewMutatorProject(&m.inner.Projects[index], NewChainedChangeLogger(fmt.Sprintf("Projects "), m.changes))
+}
+
+// SetEmployees sets Employees of the Acme object
 func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 
 	if len(value) == 0 && len(m.inner.Employees) == 0 {
@@ -313,11 +313,6 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 	return true
 }
 
-// MutateEmployeesAt returns a mutator for Employees element at index of the Acme object.
-func (m *MutatorAcme) MutateEmployeesAt(index int) *MutatorEmployee {
-	return NewMutatorEmployee(m.inner.Employees[index], NewChainedChangeLogger(fmt.Sprintf("Employees "), m.changes))
-}
-
 // AppendEmployees appends a Employees element of the Acme object.
 func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
 	m.changes.Append(Change{
@@ -336,6 +331,11 @@ func (m *MutatorAcme) RemoveEmployees(index int) {
 		OldValue:  fmt.Sprintf("%+v", m.inner.Employees[index]),
 	})
 	m.inner.Employees = append(m.inner.Employees[:index], m.inner.Employees[index+1:]...)
+}
+
+// MutateEmployeesAt returns a mutator for Employees element at index of the Acme object.
+func (m *MutatorAcme) MutateEmployeesAt(index int) *MutatorEmployee {
+	return NewMutatorEmployee(m.inner.Employees[index], NewChainedChangeLogger(fmt.Sprintf("Employees "), m.changes))
 }
 
 // MutateStreet mutates the Street of the Address object
@@ -521,7 +521,7 @@ func (m *MutatorVat) MutateType(value string) bool {
 	return true
 }
 
-// MutateVat sets Vat of the Acme object
+// SetVat sets Vat of the Acme object
 func (m *MutatorAcme) SetVat(value *Vat) bool {
 
 	m.changes.Append(Change{
@@ -539,4 +539,142 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 func (m *MutatorAcme) MutateVat() *MutatorVat {
 
 	return NewMutatorVat(&m.inner.Vat, NewChainedChangeLogger("Vat ", m.changes))
+}
+
+// SetNicknames sets Nicknames of the Acme object
+func (m *MutatorAcme) SetNicknames(value map[string]*Employee) bool {
+
+	if len(value) == 0 && len(m.inner.Nicknames) == 0 {
+		return false
+	}
+
+	operation := ChangeOperationSet
+	if len(value) == 0 {
+		operation = ChangeOperationClear
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Nicknames",
+		Operation: operation,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Nicknames),
+		NewValue:  fmt.Sprintf("%+v", value),
+	})
+	m.inner.Nicknames = value
+
+	return true
+}
+
+// InsertNicknames inserts a Nicknames map element of the Acme object.
+func (m *MutatorAcme) InsertNicknames(
+	key string,
+	value *Employee,
+) bool {
+	currentValue, exists := m.inner.Nicknames[key]
+	if exists && currentValue == value {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Nicknames",
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+	})
+
+	if m.inner.Nicknames == nil {
+		m.inner.Nicknames = make(map[string]*Employee)
+	}
+
+	m.inner.Nicknames[key] = value
+
+	return true
+}
+
+// RemoveNicknames removes a Nicknames map element of the Acme object.
+func (m *MutatorAcme) RemoveNicknames(key string) bool {
+	_, exists := m.inner.Nicknames[key]
+	if !exists {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Nicknames",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Nicknames[key]),
+	})
+	delete(m.inner.Nicknames, key)
+
+	return true
+}
+
+// MutateNicknamesWithKey returns a mutator for Nicknames map element Acme object with given key.
+func (m *MutatorAcme) MutateNicknamesWithKey(key string) *MutatorEmployee {
+	return NewMutatorEmployee(
+		m.inner.Nicknames[key],
+		NewChainedChangeLogger(fmt.Sprintf("Nicknames "), m.changes),
+	)
+}
+
+// SetEquity sets Equity of the Acme object
+func (m *MutatorAcme) SetEquity(value map[*Employee]int) bool {
+
+	if len(value) == 0 && len(m.inner.Equity) == 0 {
+		return false
+	}
+
+	operation := ChangeOperationSet
+	if len(value) == 0 {
+		operation = ChangeOperationClear
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Equity",
+		Operation: operation,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Equity),
+		NewValue:  fmt.Sprintf("%+v", value),
+	})
+	m.inner.Equity = value
+
+	return true
+}
+
+// InsertEquity inserts a Equity map element of the Acme object.
+func (m *MutatorAcme) InsertEquity(
+	key *Employee,
+	value int,
+) bool {
+	currentValue, exists := m.inner.Equity[key]
+	if exists && currentValue == value {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Equity",
+		Operation: ChangeOperationAdded,
+		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+	})
+
+	if m.inner.Equity == nil {
+		m.inner.Equity = make(map[*Employee]int)
+	}
+
+	m.inner.Equity[key] = value
+
+	return true
+}
+
+// RemoveEquity removes a Equity map element of the Acme object.
+func (m *MutatorAcme) RemoveEquity(key *Employee) bool {
+	_, exists := m.inner.Equity[key]
+	if !exists {
+		return false
+	}
+
+	m.changes.Append(Change{
+		FieldName: "Equity",
+		Operation: ChangeOperationRemoved,
+		OldValue:  fmt.Sprintf("%+v", m.inner.Equity[key]),
+	})
+	delete(m.inner.Equity, key)
+
+	return true
 }

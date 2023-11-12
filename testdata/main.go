@@ -81,14 +81,16 @@ func main() {
 
 	uk := "UK"
 
-	mutator.SetAddress(nil)
-	mutator.SetAddress(newAddr)
-	mutator.MutateVat().MutateType("Company Ltd.")
-	mutator.MutateAddress().MutateStreet("Baker Street")
-	mutator.MutateAddress().SetLocation(&uk)
-	mutator.MutateEmployeesAt(0).MutateName("John Smith")
-	mutator.MutateEmployeesAt(0).MutateProjectsAt(0).MutateName("Project 1 - Updated")
-	mutator.MutateEmployeesAt(0).MutateName("John Smith")
+	t := &testing.T{}
+
+	assert.True(t, mutator.SetAddress(nil))
+	assert.True(t, mutator.SetAddress(newAddr))
+	assert.True(t, mutator.MutateVat().MutateType("Company Ltd."))
+	assert.True(t, mutator.MutateAddress().MutateStreet("Baker Street"))
+	assert.True(t, mutator.MutateAddress().SetLocation(&uk))
+	assert.True(t, mutator.MutateEmployeesAt(0).MutateName("John Smith"))
+	assert.True(t, mutator.MutateEmployeesAt(0).MutateProjectsAt(0).MutateName("Project 1 - Updated"))
+	assert.False(t, mutator.MutateEmployeesAt(0).MutateName("John Smith"))
 	mutator.AppendEmployees(&Employee{
 		Name:     "Roger Smith",
 		Position: "CFO",
@@ -96,12 +98,19 @@ func main() {
 		JoinedAt: now,
 		Projects: nil,
 	})
+	assert.True(t, mutator.SetNicknames(map[string]*Employee{
+		"Johnny": acme.Employees[0],
+	}))
+	assert.True(t, mutator.InsertNicknames("Janey", acme.Employees[1]))
+	assert.False(t, mutator.InsertNicknames("Janey", acme.Employees[1]))
+	assert.True(t, mutator.RemoveNicknames("Johnny"))
+	assert.False(t, mutator.RemoveNicknames("Roger Ramjet"))
+	assert.True(t, mutator.MutateNicknamesWithKey("Janey").MutateWage(50000))
+	assert.True(t, mutator.InsertEquity(acme.Employees[1], 1000))
 
 	for _, change := range mutator.FormatChanges() {
 		fmt.Println(change)
 	}
-
-	t := &testing.T{}
 
 	assert.Equal(t, 2019, acme.YearOfBirth)
 	assert.Equal(t, newAddr, acme.Address)
@@ -110,4 +119,7 @@ func main() {
 	assert.Equal(t, "UK", *acme.Address.Location)
 	assert.Equal(t, "John Smith", acme.Employees[0].Name)
 	assert.Equal(t, "Project 1 - Updated", acme.Employees[0].Projects[0].Name)
+	assert.Equal(t, acme.Employees[1], acme.Nicknames["Janey"])
+	assert.Nil(t, acme.Nicknames["Johnny"])
+	assert.Equal(t, 50000, acme.Employees[1].Wage)
 }
