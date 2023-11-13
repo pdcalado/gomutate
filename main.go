@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -8,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -28,6 +30,10 @@ import (
 	{{end}}
 )
 `
+
+	//go:embed changes.go.tpl
+	changesTemplate string
+
 	mainMutatorTemplate = `
 type Mutator{{.TypeName}} struct {
 	inner   *{{.TypeName}}
@@ -296,7 +302,8 @@ func Usage() {
 }
 
 var (
-	flagType = flag.String("type", "", "type to generate code for (required)")
+	flagType  = flag.String("type", "", "type to generate code for (required)")
+	flagWrite = flag.String("w", "", "write result to a file instead of stdout")
 )
 
 func main() {
@@ -348,6 +355,13 @@ func main() {
 	fset := token.NewFileSet()
 
 	targetTypeName := *flagType
+	var output io.Writer = os.Stdout
+	if *flagWrite != "" {
+		output, err = os.Create(*flagWrite)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	// gather all struct declarations
 	var typeSpecs []ast.Node
@@ -424,6 +438,8 @@ func main() {
 			template: headerTemplate,
 			data:     header,
 		}, {
+			template: changesTemplate,
+		}, {
 			template: mainMutatorTemplate,
 			data:     mainMutator,
 		},
@@ -444,7 +460,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		err = tmpl.Execute(os.Stdout, step.data)
+		err = tmpl.Execute(output, step.data)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -1,7 +1,3 @@
-package main
-
-import "fmt"
-
 // Change represents a mutation applied to an object.
 type Change struct {
 	Prefix    string          `json:"prefix,omitempty"`
@@ -47,12 +43,14 @@ func (f *DefaultChangeFormatter) Format(c *Change) string {
 	return ""
 }
 
+// DefaultChangeLogger provides basic change logging functionality.
 type DefaultChangeLogger struct {
 	prefix    string
 	changes   []Change
 	formatter ChangeFormatter
 }
 
+// NewDefaultChangeLogger creates a new instance of DefaultChangeLogger.
 func NewDefaultChangeLogger(prefix string) *DefaultChangeLogger {
 	return &DefaultChangeLogger{
 		prefix:    prefix,
@@ -60,11 +58,13 @@ func NewDefaultChangeLogger(prefix string) *DefaultChangeLogger {
 	}
 }
 
+// Append appends a change to the change logger.
 func (c *DefaultChangeLogger) Append(change Change) {
 	change.Prefix = c.prefix + change.Prefix
 	c.changes = append(c.changes, change)
 }
 
+// ToString converts the change logger to a slice of human readable strings.
 func (c *DefaultChangeLogger) ToString() (result []string) {
 	for i := range c.changes {
 		result = append(result, c.formatter.Format(&c.changes[i]))
@@ -72,11 +72,14 @@ func (c *DefaultChangeLogger) ToString() (result []string) {
 	return
 }
 
+// ChainedChangeLogger implements ChangeLogger interface using an inner change logger.
+// Multiple change loggers are chained together by prepending prefixes.
 type ChainedChangeLogger struct {
 	prefix string
 	inner  ChangeLogger
 }
 
+// NewChainedChangeLogger creates a new instance of ChainedChangeLogger.
 func NewChainedChangeLogger(prefix string, inner ChangeLogger) *ChainedChangeLogger {
 	return &ChainedChangeLogger{
 		prefix: prefix,
@@ -84,15 +87,18 @@ func NewChainedChangeLogger(prefix string, inner ChangeLogger) *ChainedChangeLog
 	}
 }
 
+// Append appends a change to the change logger.
 func (c *ChainedChangeLogger) Append(change Change) {
 	change.Prefix = c.prefix + change.Prefix
 	c.inner.Append(change)
 }
 
+// ToString converts the change logger to a slice of human readable strings.
 func (c *ChainedChangeLogger) ToString() []string {
 	return c.inner.ToString()
 }
 
+// ChangeLogger defines an interface for logging changes.
 type ChangeLogger interface {
 	Append(change Change)
 	ToString() []string
