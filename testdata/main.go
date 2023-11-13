@@ -70,7 +70,7 @@ func main() {
 	}
 
 	mutator := NewMutatorAcme(&acme)
-	mutator.MutateYearOfBirth(2019)
+	mutator.SetYearOfBirth(2019)
 
 	newAddr := &Address{
 		Street: "Liverpool Street",
@@ -85,12 +85,12 @@ func main() {
 
 	assert.True(t, mutator.SetAddress(nil))
 	assert.True(t, mutator.SetAddress(newAddr))
-	assert.True(t, mutator.MutateVat().MutateType("Company Ltd."))
-	assert.True(t, mutator.MutateAddress().MutateStreet("Baker Street"))
-	assert.True(t, mutator.MutateAddress().SetLocation(&uk))
-	assert.True(t, mutator.MutateEmployeesAt(0).MutateName("John Smith"))
-	assert.True(t, mutator.MutateEmployeesAt(0).MutateProjectsAt(0).MutateName("Project 1 - Updated"))
-	assert.False(t, mutator.MutateEmployeesAt(0).MutateName("John Smith"))
+	assert.True(t, mutator.Vat().SetType("Company Ltd."))
+	assert.True(t, mutator.Address().SetStreet("Baker Street"))
+	assert.True(t, mutator.Address().SetLocation(&uk))
+	assert.True(t, mutator.EmployeesAt(0).SetName("John Smith"))
+	assert.True(t, mutator.EmployeesAt(0).ProjectsAt(0).SetName("Project 1 - Updated"))
+	assert.False(t, mutator.EmployeesAt(0).SetName("John Smith"))
 	mutator.AppendEmployees(&Employee{
 		Name:     "Roger Smith",
 		Position: "CFO",
@@ -105,7 +105,7 @@ func main() {
 	assert.False(t, mutator.InsertNicknames("Janey", acme.Employees[1]))
 	assert.True(t, mutator.RemoveNicknames("Johnny"))
 	assert.False(t, mutator.RemoveNicknames("Roger Ramjet"))
-	assert.True(t, mutator.MutateNicknamesWithKey("Janey").MutateWage(50000))
+	assert.True(t, mutator.NicknamesWithKey("Janey").SetWage(50000))
 	assert.True(t, mutator.InsertEquity(acme.Employees[1], 1000))
 
 	for _, change := range mutator.FormatChanges() {

@@ -6,6 +6,111 @@ import (
 	"time"
 	
 )
+// Change represents a mutation applied to an object.
+type Change struct {
+	Prefix    string          `json:"prefix,omitempty"`
+	FieldName string          `json:"field_name,omitempty"`
+	Operation ChangeOperation `json:"operation,omitempty"`
+	OldValue  string          `json:"old_value,omitempty"`
+	NewValue  string          `json:"new_value,omitempty"`
+}
+
+// ChangeOperation defines a type used for change operation enums.
+type ChangeOperation string
+
+const (
+	ChangeOperationAdded   ChangeOperation = "Added"
+	ChangeOperationRemoved ChangeOperation = "Removed"
+	ChangeOperationUpdated ChangeOperation = "Updated"
+	ChangeOperationSet     ChangeOperation = "Set"
+	ChangeOperationClear   ChangeOperation = "Clear"
+)
+
+// ChangeFormatter defines an interface for formatting changes to human readable string.
+type ChangeFormatter interface {
+	Format(c *Change) string
+}
+
+// DefaultChangeFormatter provides basic change formatting functionality.
+type DefaultChangeFormatter struct{}
+
+// Format formats a change to a human readable string.
+func (f *DefaultChangeFormatter) Format(c *Change) string {
+	switch c.Operation {
+	case ChangeOperationAdded:
+		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.NewValue)
+	case ChangeOperationRemoved:
+		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.OldValue)
+	case ChangeOperationUpdated:
+		return fmt.Sprintf("%s%s %s: %s -> %s", c.Prefix, c.FieldName, c.Operation, c.OldValue, c.NewValue)
+	case ChangeOperationSet:
+		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.NewValue)
+	case ChangeOperationClear:
+		return fmt.Sprintf("%s%s %s", c.Prefix, c.FieldName, c.Operation)
+	}
+	return ""
+}
+
+// DefaultChangeLogger provides basic change logging functionality.
+type DefaultChangeLogger struct {
+	prefix    string
+	changes   []Change
+	formatter ChangeFormatter
+}
+
+// NewDefaultChangeLogger creates a new instance of DefaultChangeLogger.
+func NewDefaultChangeLogger(prefix string) *DefaultChangeLogger {
+	return &DefaultChangeLogger{
+		prefix:    prefix,
+		formatter: &DefaultChangeFormatter{},
+	}
+}
+
+// Append appends a change to the change logger.
+func (c *DefaultChangeLogger) Append(change Change) {
+	change.Prefix = c.prefix + change.Prefix
+	c.changes = append(c.changes, change)
+}
+
+// ToString converts the change logger to a slice of human readable strings.
+func (c *DefaultChangeLogger) ToString() (result []string) {
+	for i := range c.changes {
+		result = append(result, c.formatter.Format(&c.changes[i]))
+	}
+	return
+}
+
+// ChainedChangeLogger implements ChangeLogger interface using an inner change logger.
+// Multiple change loggers are chained together by prepending prefixes.
+type ChainedChangeLogger struct {
+	prefix string
+	inner  ChangeLogger
+}
+
+// NewChainedChangeLogger creates a new instance of ChainedChangeLogger.
+func NewChainedChangeLogger(prefix string, inner ChangeLogger) *ChainedChangeLogger {
+	return &ChainedChangeLogger{
+		prefix: prefix,
+		inner:  inner,
+	}
+}
+
+// Append appends a change to the change logger.
+func (c *ChainedChangeLogger) Append(change Change) {
+	change.Prefix = c.prefix + change.Prefix
+	c.inner.Append(change)
+}
+
+// ToString converts the change logger to a slice of human readable strings.
+func (c *ChainedChangeLogger) ToString() []string {
+	return c.inner.ToString()
+}
+
+// ChangeLogger defines an interface for logging changes.
+type ChangeLogger interface {
+	Append(change Change)
+	ToString() []string
+}
 
 type MutatorAcme struct {
 	inner   *Acme
@@ -72,8 +177,8 @@ func NewMutatorProject(obj *Project, changes ChangeLogger) *MutatorProject {
 	}
 }
 
-// MutateName mutates the Name of the Acme object
-func (m *MutatorAcme) MutateName(value string) bool {
+// SetName mutates the Name of the Acme object
+func (m *MutatorAcme) SetName(value string) bool {
 	if m.inner.Name == value {
 		return false
 	}
@@ -89,8 +194,8 @@ func (m *MutatorAcme) MutateName(value string) bool {
 	return true
 }
 
-// MutateYearOfBirth mutates the YearOfBirth of the Acme object
-func (m *MutatorAcme) MutateYearOfBirth(value int) bool {
+// SetYearOfBirth mutates the YearOfBirth of the Acme object
+func (m *MutatorAcme) SetYearOfBirth(value int) bool {
 	if m.inner.YearOfBirth == value {
 		return false
 	}
@@ -106,8 +211,8 @@ func (m *MutatorAcme) MutateYearOfBirth(value int) bool {
 	return true
 }
 
-// MutateName mutates the Name of the Employee object
-func (m *MutatorEmployee) MutateName(value string) bool {
+// SetName mutates the Name of the Employee object
+func (m *MutatorEmployee) SetName(value string) bool {
 	if m.inner.Name == value {
 		return false
 	}
@@ -123,8 +228,8 @@ func (m *MutatorEmployee) MutateName(value string) bool {
 	return true
 }
 
-// MutatePosition mutates the Position of the Employee object
-func (m *MutatorEmployee) MutatePosition(value string) bool {
+// SetPosition mutates the Position of the Employee object
+func (m *MutatorEmployee) SetPosition(value string) bool {
 	if m.inner.Position == value {
 		return false
 	}
@@ -140,8 +245,8 @@ func (m *MutatorEmployee) MutatePosition(value string) bool {
 	return true
 }
 
-// MutateWage mutates the Wage of the Employee object
-func (m *MutatorEmployee) MutateWage(value int) bool {
+// SetWage mutates the Wage of the Employee object
+func (m *MutatorEmployee) SetWage(value int) bool {
 	if m.inner.Wage == value {
 		return false
 	}
@@ -157,8 +262,8 @@ func (m *MutatorEmployee) MutateWage(value int) bool {
 	return true
 }
 
-// MutateJoinedAt mutates the JoinedAt of the Employee object
-func (m *MutatorEmployee) MutateJoinedAt(value time.Time) bool {
+// SetJoinedAt mutates the JoinedAt of the Employee object
+func (m *MutatorEmployee) SetJoinedAt(value time.Time) bool {
 	if m.inner.JoinedAt == value {
 		return false
 	}
@@ -174,8 +279,8 @@ func (m *MutatorEmployee) MutateJoinedAt(value time.Time) bool {
 	return true
 }
 
-// MutateName mutates the Name of the Project object
-func (m *MutatorProject) MutateName(value string) bool {
+// SetName mutates the Name of the Project object
+func (m *MutatorProject) SetName(value string) bool {
 	if m.inner.Name == value {
 		return false
 	}
@@ -191,8 +296,8 @@ func (m *MutatorProject) MutateName(value string) bool {
 	return true
 }
 
-// MutateValue mutates the Value of the Project object
-func (m *MutatorProject) MutateValue(value int) bool {
+// SetValue mutates the Value of the Project object
+func (m *MutatorProject) SetValue(value int) bool {
 	if m.inner.Value == value {
 		return false
 	}
@@ -208,8 +313,8 @@ func (m *MutatorProject) MutateValue(value int) bool {
 	return true
 }
 
-// MutateStartedAt mutates the StartedAt of the Project object
-func (m *MutatorProject) MutateStartedAt(value time.Time) bool {
+// SetStartedAt mutates the StartedAt of the Project object
+func (m *MutatorProject) SetStartedAt(value time.Time) bool {
 	if m.inner.StartedAt == value {
 		return false
 	}
@@ -225,8 +330,8 @@ func (m *MutatorProject) MutateStartedAt(value time.Time) bool {
 	return true
 }
 
-// MutateFinishedAt mutates the FinishedAt of the Project object
-func (m *MutatorProject) MutateFinishedAt(value time.Time) bool {
+// SetFinishedAt mutates the FinishedAt of the Project object
+func (m *MutatorProject) SetFinishedAt(value time.Time) bool {
 	if m.inner.FinishedAt == value {
 		return false
 	}
@@ -285,8 +390,8 @@ func (m *MutatorEmployee) RemoveProjects(index int) {
 	m.inner.Projects = append(m.inner.Projects[:index], m.inner.Projects[index+1:]...)
 }
 
-// MutateProjectsAt returns a mutator for Projects element at index of the Employee object.
-func (m *MutatorEmployee) MutateProjectsAt(index int) *MutatorProject {
+// ProjectsAt returns a mutator for Projects element at index of the Employee object.
+func (m *MutatorEmployee) ProjectsAt(index int) *MutatorProject {
 	return NewMutatorProject(&m.inner.Projects[index], NewChainedChangeLogger(fmt.Sprintf("Projects "), m.changes))
 }
 
@@ -333,13 +438,13 @@ func (m *MutatorAcme) RemoveEmployees(index int) {
 	m.inner.Employees = append(m.inner.Employees[:index], m.inner.Employees[index+1:]...)
 }
 
-// MutateEmployeesAt returns a mutator for Employees element at index of the Acme object.
-func (m *MutatorAcme) MutateEmployeesAt(index int) *MutatorEmployee {
+// EmployeesAt returns a mutator for Employees element at index of the Acme object.
+func (m *MutatorAcme) EmployeesAt(index int) *MutatorEmployee {
 	return NewMutatorEmployee(m.inner.Employees[index], NewChainedChangeLogger(fmt.Sprintf("Employees "), m.changes))
 }
 
-// MutateStreet mutates the Street of the Address object
-func (m *MutatorAddress) MutateStreet(value string) bool {
+// SetStreet mutates the Street of the Address object
+func (m *MutatorAddress) SetStreet(value string) bool {
 	if m.inner.Street == value {
 		return false
 	}
@@ -355,8 +460,8 @@ func (m *MutatorAddress) MutateStreet(value string) bool {
 	return true
 }
 
-// MutateNumber mutates the Number of the Address object
-func (m *MutatorAddress) MutateNumber(value int) bool {
+// SetNumber mutates the Number of the Address object
+func (m *MutatorAddress) SetNumber(value int) bool {
 	if m.inner.Number == value {
 		return false
 	}
@@ -372,8 +477,8 @@ func (m *MutatorAddress) MutateNumber(value int) bool {
 	return true
 }
 
-// MutateCity mutates the City of the Address object
-func (m *MutatorAddress) MutateCity(value string) bool {
+// SetCity mutates the City of the Address object
+func (m *MutatorAddress) SetCity(value string) bool {
 	if m.inner.City == value {
 		return false
 	}
@@ -389,8 +494,8 @@ func (m *MutatorAddress) MutateCity(value string) bool {
 	return true
 }
 
-// MutateZip mutates the Zip of the Address object
-func (m *MutatorAddress) MutateZip(value int) bool {
+// SetZip mutates the Zip of the Address object
+func (m *MutatorAddress) SetZip(value int) bool {
 	if m.inner.Zip == value {
 		return false
 	}
@@ -476,9 +581,9 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 	return true
 }
 
-// MutateAddress returns a mutator for Address of the Acme object.
+// Address returns a mutator for Address of the Acme object.
 // If the field is nil, it will be initialized to a new Address object.
-func (m *MutatorAcme) MutateAddress() *MutatorAddress {
+func (m *MutatorAcme) Address() *MutatorAddress {
 
 	if m.inner.Address == nil {
 		m.inner.Address = &Address{}
@@ -487,8 +592,8 @@ func (m *MutatorAcme) MutateAddress() *MutatorAddress {
 	return NewMutatorAddress(m.inner.Address, NewChainedChangeLogger(fmt.Sprintf("Address "), m.changes))
 }
 
-// MutateNumber mutates the Number of the Vat object
-func (m *MutatorVat) MutateNumber(value string) bool {
+// SetNumber mutates the Number of the Vat object
+func (m *MutatorVat) SetNumber(value string) bool {
 	if m.inner.Number == value {
 		return false
 	}
@@ -504,8 +609,8 @@ func (m *MutatorVat) MutateNumber(value string) bool {
 	return true
 }
 
-// MutateType mutates the Type of the Vat object
-func (m *MutatorVat) MutateType(value string) bool {
+// SetType mutates the Type of the Vat object
+func (m *MutatorVat) SetType(value string) bool {
 	if m.inner.Type == value {
 		return false
 	}
@@ -535,8 +640,8 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 	return true
 }
 
-// MutateVat returns a mutator for Vat of the Acme object.
-func (m *MutatorAcme) MutateVat() *MutatorVat {
+// Vat returns a mutator for Vat of the Acme object.
+func (m *MutatorAcme) Vat() *MutatorVat {
 
 	return NewMutatorVat(&m.inner.Vat, NewChainedChangeLogger("Vat ", m.changes))
 }
@@ -606,8 +711,8 @@ func (m *MutatorAcme) RemoveNicknames(key string) bool {
 	return true
 }
 
-// MutateNicknamesWithKey returns a mutator for Nicknames map element Acme object with given key.
-func (m *MutatorAcme) MutateNicknamesWithKey(key string) *MutatorEmployee {
+// NicknamesWithKey returns a mutator for Nicknames map element Acme object with given key.
+func (m *MutatorAcme) NicknamesWithKey(key string) *MutatorEmployee {
 	return NewMutatorEmployee(
 		m.inner.Nicknames[key],
 		NewChainedChangeLogger(fmt.Sprintf("Nicknames "), m.changes),

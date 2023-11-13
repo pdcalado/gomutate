@@ -68,8 +68,8 @@ func NewMutator{{.TypeName}}(obj *{{.TypeName}}, changes ChangeLogger) *Mutator{
 `
 
 	mutateFieldTemplate = `
-// Mutate{{.FieldName}} mutates the {{.FieldName}} of the {{.TypeName}} object
-func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}(value {{.FieldTypeName}}) bool {
+// Set{{.FieldName}} mutates the {{.FieldName}} of the {{.TypeName}} object
+func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool {
 	if m.inner.{{.FieldName}} == value {
 		return false
 	}
@@ -231,9 +231,9 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 `
 
 	mutatePtrTemplate = `
-// Mutate{{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
+// {{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
 // If the field is nil, it will be initialized to a new {{.FieldTypeName}} object.
-func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}} {
+func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 
 	if m.inner.{{.FieldName}} == nil {
 		m.inner.{{.FieldName}} = &{{.FieldTypeName}}{}
@@ -244,23 +244,23 @@ func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}}
 `
 
 	mutateSliceElementTemplate = `
-// Mutate{{.FieldName}}At returns a mutator for {{.FieldName}} element at index of the {{.TypeName}} object.
-func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
+// {{.FieldName}}At returns a mutator for {{.FieldName}} element at index of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) {{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
 	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
 }
 `
 
 	mutateObjTemplate = `
-// Mutate{{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
-func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}() *Mutator{{.FieldTypeName}} {
+// {{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
+func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 
 	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, NewChainedChangeLogger("{{.FieldName}} ", m.changes))
 }
 `
 
 	mutateMapElementTemplate = `
-// Mutate{{.FieldName}}WithKey returns a mutator for {{.FieldName}} map element {{.TypeName}} object with given key.
-func (m *Mutator{{.TypeName}}) Mutate{{.FieldName}}WithKey(key {{.FieldKeyTypeName}}) *Mutator{{.FieldTypeName}} {
+// {{.FieldName}}WithKey returns a mutator for {{.FieldName}} map element {{.TypeName}} object with given key.
+func (m *Mutator{{.TypeName}}) {{.FieldName}}WithKey(key {{.FieldKeyTypeName}}) *Mutator{{.FieldTypeName}} {
 	return NewMutator{{.FieldTypeName}}(
 		{{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[key],
 		NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes),

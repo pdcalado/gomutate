@@ -8,15 +8,15 @@ For a type like this:
 
 ```go
 type Acme struct {
-	Name        string
-	YearOfBirth int
-	Employees   []*Employee
+ Name        string
+ YearOfBirth int
+ Employees   []*Employee
 }
 
 type Employee struct {
-	Name     string
-	Position string
-	JoinedAt time.Time
+ Name     string
+ Position string
+ JoinedAt time.Time
 }
 ```
 
@@ -41,8 +41,8 @@ acme := Acme{
 }
 
 mutator := NewMutatorAcme(&acme)
-mutator.MutateYearOfBirth(2019)
-mutator.MutateEmployeesAt(0).MutateName("John Smith")
+mutator.SetYearOfBirth(2019)
+mutator.EmployeesAt(0).SetName("John Smith")
 ```
 
 and reporting changes like this:
@@ -58,6 +58,18 @@ YearOfBirth Updated: 2018 -> 2019
 Employees Name Updated: John Doe -> John Smith
 ```
 
+## Usage
+
+```console
+go get github.com/pdcalado/gomutate
+```
+
+```console
+go run github.com/pdcalado/gomutate -type <type-name> -w <path-to-output-file> <path-to-input-file>
+```
+
+Input and output files must be in the same package. Omit the `-w` flag to print to stdout.
+
 ## Features
 
 See our [tests](./testdata/main.go) for examples of other possibly unlisted supported operations.
@@ -70,7 +82,6 @@ See our [tests](./testdata/main.go) for examples of other possibly unlisted supp
 - mutate a field with a map of structs or struct pointers defined in the same package, including struct pointers as keys
 - append and delete from a slice
 - insert and delete from a map
-
 
 ## Limitations
 
