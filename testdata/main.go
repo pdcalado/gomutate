@@ -2,11 +2,21 @@ package main
 
 import (
 	"fmt"
-	"testing"
+	"log"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
+
+func assertBool(expected bool, obtained bool) {
+	if expected != obtained {
+		log.Fatal("expected %v", expected)
+	}
+}
+
+func assertEqual[T comparable](expected T, obtained T) {
+	if expected != obtained {
+		log.Fatal("expected %v", expected)
+	}
+}
 
 func main() {
 	// use a fixed date as now
@@ -81,16 +91,14 @@ func main() {
 
 	uk := "UK"
 
-	t := &testing.T{}
-
-	assert.True(t, mutator.SetAddress(nil))
-	assert.True(t, mutator.SetAddress(newAddr))
-	assert.True(t, mutator.Vat().SetType("Company Ltd."))
-	assert.True(t, mutator.Address().SetStreet("Baker Street"))
-	assert.True(t, mutator.Address().SetLocation(&uk))
-	assert.True(t, mutator.EmployeesAt(0).SetName("John Smith"))
-	assert.True(t, mutator.EmployeesAt(0).ProjectsAt(0).SetName("Project 1 - Updated"))
-	assert.False(t, mutator.EmployeesAt(0).SetName("John Smith"))
+	assertBool(true, mutator.SetAddress(nil))
+	assertBool(true, mutator.SetAddress(newAddr))
+	assertBool(true, mutator.Vat().SetType("Company Ltd."))
+	assertBool(true, mutator.Address().SetStreet("Baker Street"))
+	assertBool(true, mutator.Address().SetLocation(&uk))
+	assertBool(true, mutator.EmployeesAt(0).SetName("John Smith"))
+	assertBool(true, mutator.EmployeesAt(0).ProjectsAt(0).SetName("Project 1 - Updated"))
+	assertBool(false, mutator.EmployeesAt(0).SetName("John Smith"))
 	mutator.AppendEmployees(&Employee{
 		Name:     "Roger Smith",
 		Position: "CFO",
@@ -98,28 +106,28 @@ func main() {
 		JoinedAt: now,
 		Projects: nil,
 	})
-	assert.True(t, mutator.SetNicknames(map[string]*Employee{
+	assertBool(true, mutator.SetNicknames(map[string]*Employee{
 		"Johnny": acme.Employees[0],
 	}))
-	assert.True(t, mutator.InsertNicknames("Janey", acme.Employees[1]))
-	assert.False(t, mutator.InsertNicknames("Janey", acme.Employees[1]))
-	assert.True(t, mutator.RemoveNicknames("Johnny"))
-	assert.False(t, mutator.RemoveNicknames("Roger Ramjet"))
-	assert.True(t, mutator.NicknamesWithKey("Janey").SetWage(50000))
-	assert.True(t, mutator.InsertEquity(acme.Employees[1], 1000))
+	assertBool(true, mutator.InsertNicknames("Janey", acme.Employees[1]))
+	assertBool(false, mutator.InsertNicknames("Janey", acme.Employees[1]))
+	assertBool(true, mutator.RemoveNicknames("Johnny"))
+	assertBool(false, mutator.RemoveNicknames("Roger Ramjet"))
+	assertBool(true, mutator.NicknamesWithKey("Janey").SetWage(50000))
+	assertBool(true, mutator.InsertEquity(acme.Employees[1], 1000))
 
 	for _, change := range mutator.FormatChanges() {
 		fmt.Println(change)
 	}
 
-	assert.Equal(t, 2019, acme.YearOfBirth)
-	assert.Equal(t, newAddr, acme.Address)
-	assert.Equal(t, "Company Ltd.", acme.Vat.Type)
-	assert.Equal(t, "Baker Street", acme.Address.Street)
-	assert.Equal(t, "UK", *acme.Address.Location)
-	assert.Equal(t, "John Smith", acme.Employees[0].Name)
-	assert.Equal(t, "Project 1 - Updated", acme.Employees[0].Projects[0].Name)
-	assert.Equal(t, acme.Employees[1], acme.Nicknames["Janey"])
-	assert.Nil(t, acme.Nicknames["Johnny"])
-	assert.Equal(t, 50000, acme.Employees[1].Wage)
+	assertEqual(2019, acme.YearOfBirth)
+	assertEqual(newAddr, acme.Address)
+	assertEqual("Company Ltd.", acme.Vat.Type)
+	assertEqual("Baker Street", acme.Address.Street)
+	assertEqual("UK", *acme.Address.Location)
+	assertEqual("John Smith", acme.Employees[0].Name)
+	assertEqual("Project 1 - Updated", acme.Employees[0].Projects[0].Name)
+	assertEqual(acme.Employees[1], acme.Nicknames["Janey"])
+	assertBool(true, acme.Nicknames["Johnny"] == nil)
+	assertEqual(50000, acme.Employees[1].Wage)
 }
