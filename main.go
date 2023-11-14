@@ -35,15 +35,33 @@ import (
 	changesTemplate string
 
 	mainMutatorTemplate = `
+// Mutator{{.TypeName}} mutates the {{.TypeName}} object.
 type Mutator{{.TypeName}} struct {
 	inner   *{{.TypeName}}
 	changes ChangeLogger
 }
 
-func NewMutator{{.TypeName}}(obj *{{.TypeName}}) *Mutator{{.TypeName}} {
-	return &Mutator{{.TypeName}}{
+// NewMutator{{.TypeName}} creates a new mutator for the {{.TypeName}} object.
+func NewMutator{{.TypeName}}(
+	obj *{{.TypeName}},
+	options ...func(*Mutator{{.TypeName}}),
+) *Mutator{{.TypeName}} {
+	m := &Mutator{{.TypeName}}{
 		inner:   obj,
 		changes: NewDefaultChangeLogger(""),
+	}
+
+	for _, option := range options {
+		option(m)
+	}
+
+	return m
+}
+
+// WithChangeLogger sets the change logger for the mutator.
+func WithChangeLogger(changeLogger ChangeLogger) func(*MutatorAcme) {
+	return func(m *MutatorAcme) {
+		m.changes = changeLogger
 	}
 }
 

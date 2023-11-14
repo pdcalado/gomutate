@@ -112,15 +112,33 @@ type ChangeLogger interface {
 	ToString() []string
 }
 
+// MutatorAcme mutates the Acme object.
 type MutatorAcme struct {
 	inner   *Acme
 	changes ChangeLogger
 }
 
-func NewMutatorAcme(obj *Acme) *MutatorAcme {
-	return &MutatorAcme{
+// NewMutatorAcme creates a new mutator for the Acme object.
+func NewMutatorAcme(
+	obj *Acme,
+	options ...func(*MutatorAcme),
+) *MutatorAcme {
+	m := &MutatorAcme{
 		inner:   obj,
 		changes: NewDefaultChangeLogger(""),
+	}
+
+	for _, option := range options {
+		option(m)
+	}
+
+	return m
+}
+
+// WithChangeLogger sets the change logger for the mutator.
+func WithChangeLogger(changeLogger ChangeLogger) func(*MutatorAcme) {
+	return func(m *MutatorAcme) {
+		m.changes = changeLogger
 	}
 }
 
