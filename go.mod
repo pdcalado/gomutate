@@ -1,6 +1,6 @@
 module github.com/pdcalado/gomutate
 
-go 1.19.0
+go 1.19
 
 require golang.org/x/tools v0.14.0
 
