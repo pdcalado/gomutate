@@ -8,13 +8,13 @@ import (
 
 func assertBool(expected bool, obtained bool) {
 	if expected != obtained {
-		log.Fatal("expected %v", expected)
+		log.Fatalf("expected %+v", expected)
 	}
 }
 
 func assertEqual[T comparable](expected T, obtained T) {
 	if expected != obtained {
-		log.Fatal("expected %v", expected)
+		log.Fatalf("expected %+v, got %+v", expected, obtained)
 	}
 }
 
@@ -99,6 +99,8 @@ func main() {
 	assertBool(true, mutator.EmployeesAt(0).SetName("John Smith"))
 	assertBool(true, mutator.EmployeesAt(0).ProjectsAt(0).SetName("Project 1 - Updated"))
 	assertBool(false, mutator.EmployeesAt(0).SetName("John Smith"))
+	assertBool(true, mutator.EmployeesByPtr(acme.Employees[1]) != nil)
+	assertBool(true, mutator.EmployeesByPtr(&Employee{}) == nil)
 	mutator.AppendEmployees(&Employee{
 		Name:     "Roger Smith",
 		Position: "CFO",

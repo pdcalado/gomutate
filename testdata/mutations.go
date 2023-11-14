@@ -395,6 +395,7 @@ func (m *MutatorEmployee) ProjectsAt(index int) *MutatorProject {
 	return NewMutatorProject(&m.inner.Projects[index], NewChainedChangeLogger(fmt.Sprintf("Projects "), m.changes))
 }
 
+
 // SetEmployees sets Employees of the Acme object
 func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 
@@ -441,6 +442,16 @@ func (m *MutatorAcme) RemoveEmployees(index int) {
 // EmployeesAt returns a mutator for Employees element at index of the Acme object.
 func (m *MutatorAcme) EmployeesAt(index int) *MutatorEmployee {
 	return NewMutatorEmployee(m.inner.Employees[index], NewChainedChangeLogger(fmt.Sprintf("Employees "), m.changes))
+}
+
+// EmployeesByPtr returns a mutator for Employees element given by a pointer of type Acme.
+func (m *MutatorAcme) EmployeesByPtr(ptr *Employee) *MutatorEmployee {
+	for i, item := range m.inner.Employees {
+		if item == ptr {
+			return m.EmployeesAt(i)
+		}
+	}
+	return nil
 }
 
 // SetStreet mutates the Street of the Address object

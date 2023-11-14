@@ -248,6 +248,16 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 func (m *Mutator{{.TypeName}}) {{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
 	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
 }
+{{if .FieldTypeIsPointer}}
+// {{.FieldName}}ByPtr returns a mutator for {{.FieldName}} element given by a pointer of type {{.TypeName}}.
+func (m *Mutator{{.TypeName}}) {{.FieldName}}ByPtr(ptr *{{.FieldTypeName}}) *Mutator{{.FieldTypeName}} {
+	for i, item := range m.inner.{{.FieldName}} {
+		if item == ptr {
+			return m.{{.FieldName}}At(i)
+		}
+	}
+	return nil
+}{{end}}
 `
 
 	mutateObjTemplate = `
