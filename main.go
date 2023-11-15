@@ -59,8 +59,8 @@ func NewMutator{{.TypeName}}(
 }
 
 // WithChangeLogger sets the change logger for the mutator.
-func WithChangeLogger(changeLogger ChangeLogger) func(*MutatorAcme) {
-	return func(m *MutatorAcme) {
+func WithChangeLogger(changeLogger ChangeLogger) func(*Mutator{{.TypeName}}) {
+	return func(m *Mutator{{.TypeName}}) {
 		m.changes = changeLogger
 	}
 }
