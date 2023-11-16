@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -15,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -31,14 +31,18 @@ import (
 )
 `
 
-	//go:embed changes.go.tpl
-	changesTemplate string
+	prefixTemplate string = `
+{{with .}}
+const ({{range .}}
+	{{.ConstName}} changes.Prefix = "{{.ConstValue}}"{{end}}
+){{end}}
+`
 
 	mainMutatorTemplate = `
 // Mutator{{.TypeName}} mutates the {{.TypeName}} object.
 type Mutator{{.TypeName}} struct {
 	inner   *{{.TypeName}}
-	changes ChangeLogger
+	changes changes.Logger
 }
 
 // NewMutator{{.TypeName}} creates a new mutator for the {{.TypeName}} object.
@@ -48,7 +52,7 @@ func NewMutator{{.TypeName}}(
 ) *Mutator{{.TypeName}} {
 	m := &Mutator{{.TypeName}}{
 		inner:   obj,
-		changes: NewDefaultChangeLogger(""),
+		changes: changes.NewDefaultLogger(changes.PrefixEmpty),
 	}
 
 	for _, option := range options {
@@ -59,9 +63,9 @@ func NewMutator{{.TypeName}}(
 }
 
 // WithChangeLogger sets the change logger for the mutator.
-func WithChangeLogger(changeLogger ChangeLogger) func(*Mutator{{.TypeName}}) {
+func WithChangeLogger(logger changes.Logger) func(*Mutator{{.TypeName}}) {
 	return func(m *Mutator{{.TypeName}}) {
-		m.changes = changeLogger
+		m.changes = logger
 	}
 }
 
@@ -74,10 +78,10 @@ func (m *Mutator{{.TypeName}}) FormatChanges() []string {
 	subMutatorTemplate = `
 type Mutator{{.TypeName}} struct {
 	inner   *{{.TypeName}}
-	changes ChangeLogger
+	changes changes.Logger
 }
 
-func NewMutator{{.TypeName}}(obj *{{.TypeName}}, changes ChangeLogger) *Mutator{{.TypeName}} {
+func NewMutator{{.TypeName}}(obj *{{.TypeName}}, changes changes.Logger) *Mutator{{.TypeName}} {
 	return &Mutator{{.TypeName}}{
 		inner:   obj,
 		changes: changes,
@@ -92,9 +96,9 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -112,12 +116,12 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	operation := ChangeOperationSet
+	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = ChangeOperationClear
+		operation = changes.OperationClear
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
 		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
@@ -140,9 +144,9 @@ func (m *Mutator{{.TypeName}}) Insert{{.FieldName}}(
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
 	})
 
@@ -162,9 +166,9 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.{{.FieldName}}[key]),
 	})
 	delete(m.inner.{{.FieldName}}, key)
@@ -176,9 +180,9 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 	sliceAppendTemplate = `
 // Append{{.FieldName}} appends a {{.FieldName}} element of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}, value...)
@@ -186,9 +190,9 @@ func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPo
 
 // Remove{{.FieldName}} removes a {{.FieldName}} element of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[index]),
 	})
 	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}[:index], m.inner.{{.FieldName}}[index+1:]...)
@@ -199,9 +203,9 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(index int) {
 // Set{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
 func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value *{{.FieldTypeName}}) bool {
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: ChangeOperationSet,
+		Operation: changes.OperationSet,
 		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -223,12 +227,12 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	operation := ChangeOperationClear
+	operation := changes.OperationClear
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.{{.FieldName}})
 
 	if value != nil {
-		operation = ChangeOperationSet
+		operation = changes.OperationSet
 		valueStr = fmt.Sprintf("%+v", *value)
 	}
 
@@ -236,7 +240,7 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		oldValueStr = fmt.Sprintf("%+v", *m.inner.{{.FieldName}})
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
 		Operation: operation,
 		OldValue:  oldValueStr,
@@ -257,14 +261,14 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 		m.inner.{{.FieldName}} = &{{.FieldTypeName}}{}
 	}
 
-	return NewMutator{{.FieldTypeName}}(m.inner.{{.FieldName}}, NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
+	return NewMutator{{.FieldTypeName}}(m.inner.{{.FieldName}}, changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
 }
 `
 
 	mutateSliceElementTemplate = `
 // {{.FieldName}}At returns a mutator for {{.FieldName}} element at index of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) {{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
-	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes))
+	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
 }
 {{if .FieldTypeIsPointer}}
 // {{.FieldName}}ByPtr returns a mutator for {{.FieldName}} element given by a pointer of type {{.TypeName}}.
@@ -281,8 +285,7 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}ByPtr(ptr *{{.FieldTypeName}}) *Mut
 	mutateObjTemplate = `
 // {{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
-
-	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, NewChainedChangeLogger("{{.FieldName}} ", m.changes))
+	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
 }
 `
 
@@ -291,7 +294,7 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 func (m *Mutator{{.TypeName}}) {{.FieldName}}WithKey(key {{.FieldKeyTypeName}}) *Mutator{{.FieldTypeName}} {
 	return NewMutator{{.FieldTypeName}}(
 		{{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[key],
-		NewChainedChangeLogger(fmt.Sprintf("{{.FieldName}} "), m.changes),
+		changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes),
 	)
 }
 `
@@ -318,6 +321,12 @@ type mutateFunctionData struct {
 	FieldTypeName         string
 	FieldTypeIsPointer    bool
 	FieldKeyTypeIsPointer bool
+	Prefix                string
+}
+
+type prefixData struct {
+	ConstName  string
+	ConstValue string
 }
 
 func Usage() {
@@ -458,15 +467,13 @@ func main() {
 
 	header := headerData{
 		PackageName: packageName,
-		Imports:     []string{"fmt", "time"},
+		Imports:     []string{"fmt", "time", "github.com/pdcalado/gomutate/changes"},
 	}
 
 	templateSteps := []templateStep{
 		{
 			template: headerTemplate,
 			data:     header,
-		}, {
-			template: changesTemplate,
 		}, {
 			template: mainMutatorTemplate,
 			data:     mainMutator,
@@ -480,7 +487,9 @@ func main() {
 		})
 	}
 
-	templateSteps = handleStructType(templateSteps, packageName, mainDecl, exprTypeMap, typeSpecs, make(map[string]bool))
+	handler := newHandler(packageName, exprTypeMap, typeSpecs)
+
+	templateSteps = append(templateSteps, handler.handle(mainDecl)...)
 
 	for i, step := range templateSteps {
 		tmpl, err := template.New(fmt.Sprintf("template%d", i)).Parse(step.template)
@@ -495,20 +504,62 @@ func main() {
 	}
 }
 
-func handleStructType(
-	steps []templateStep,
+type handler struct {
+	packageName  string
+	typesInfo    map[ast.Expr]types.TypeAndValue
+	typeSpecs    []ast.Node
+	handledTypes map[string]bool
+	prefixes     map[string]string
+}
+
+func newHandler(
 	packageName string,
-	structSpec *ast.TypeSpec,
 	typesInfo map[ast.Expr]types.TypeAndValue,
 	typeSpecs []ast.Node,
-	handledTypes map[string]bool,
+) *handler {
+	return &handler{
+		packageName:  packageName,
+		typesInfo:    typesInfo,
+		typeSpecs:    typeSpecs,
+		handledTypes: make(map[string]bool),
+		prefixes:     make(map[string]string),
+	}
+}
+
+// handle may only be called once
+func (h *handler) handle(structSpec *ast.TypeSpec) []templateStep {
+	steps := h.handleStructType(structSpec, []templateStep{}, "")
+
+	prefixes := make([]prefixData, 0, len(h.prefixes))
+	for name, value := range h.prefixes {
+		prefixes = append(prefixes, prefixData{
+			ConstName:  fmt.Sprintf("MutationPrefix%s", name),
+			ConstValue: value,
+		})
+	}
+	sort.SliceStable(prefixes, func(i, j int) bool {
+		return prefixes[i].ConstName < prefixes[j].ConstName
+	})
+
+	return append([]templateStep{
+		{
+			template: prefixTemplate,
+			data:     prefixes,
+		},
+	}, steps...)
+}
+
+func (h *handler) handleStructType(
+	structSpec *ast.TypeSpec,
+	steps []templateStep,
+	prefix string,
 ) []templateStep {
-	_, exists := handledTypes[structSpec.Name.Name]
+	_, exists := h.handledTypes[structSpec.Name.Name]
 	if exists {
 		return steps
 	}
 
-	handledTypes[structSpec.Name.Name] = true
+	h.handledTypes[structSpec.Name.Name] = true
 
 	structType := structSpec.Type.(*ast.StructType)
 
@@ -517,15 +568,20 @@ func handleStructType(
 			continue
 		}
 
-		fieldType := typesInfo[field.Type].Type
+		fieldPrefix := prefix
+
+		fieldType := h.typesInfo[field.Type].Type
 
 		locallyDefined := false
 
-		trimmedTypeStr := trimAllPrefixes(fieldType.String(), packageName)
-		for _, spec := range typeSpecs {
+		trimmedTypeStr := trimAllPrefixes(fieldType.String(), h.packageName)
+		for _, spec := range h.typeSpecs {
 			if spec.(*ast.TypeSpec).Name.Name == trimmedTypeStr {
-				steps = handleStructType(steps, packageName, spec.(*ast.TypeSpec), typesInfo, typeSpecs, handledTypes)
+				fieldPrefix = fieldPrefix + field.Names[0].Name
 				locallyDefined = true
+				h.prefixes[fieldPrefix] = field.Names[0].Name
+
+				steps = h.handleStructType(spec.(*ast.TypeSpec), steps, fieldPrefix)
 			}
 		}
 
@@ -533,16 +589,16 @@ func handleStructType(
 
 		switch fieldType.(type) {
 		case *types.Slice:
-			toAppend = handleSlice(packageName, structSpec, field, fieldType, locallyDefined)
+			toAppend = h.handleSlice(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 		case *types.Map:
-			toAppend = handleMap(packageName, structSpec, field, fieldType, locallyDefined)
+			toAppend = h.handleMap(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 		case *types.Pointer:
-			toAppend = handlePointer(packageName, structSpec, field, fieldType, locallyDefined)
+			toAppend = h.handlePointer(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 		default:
 			if locallyDefined { // may be a struct non-pointer type
-				toAppend = handleObject(packageName, structSpec, field, fieldType, locallyDefined)
+				toAppend = h.handleObject(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 			} else {
-				toAppend = handleOther(packageName, structSpec, field, fieldType, locallyDefined)
+				toAppend = h.handleOther(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 			}
 		}
 
@@ -552,12 +608,12 @@ func handleStructType(
 	return steps
 }
 
-func handleSlice(
-	packageName string,
+func (h *handler) handleSlice(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
 	locallyDefined bool,
+	prefix string,
 ) []templateStep {
 	_, fieldTypeIsPointer := fieldType.(*types.Slice).Elem().Underlying().(*types.Pointer)
 
@@ -567,7 +623,7 @@ func handleSlice(
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,
-				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
 			},
 		},
 		{
@@ -575,7 +631,7 @@ func handleSlice(
 			data: mutateFunctionData{
 				TypeName:           structSpec.Name.Name,
 				FieldName:          field.Names[0].Name,
-				FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+				FieldTypeName:      trimAllPrefixes(fieldType.String(), h.packageName),
 				FieldTypeIsPointer: fieldTypeIsPointer,
 			},
 		},
@@ -590,18 +646,19 @@ func handleSlice(
 		data: mutateFunctionData{
 			TypeName:           structSpec.Name.Name,
 			FieldName:          field.Names[0].Name,
-			FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+			FieldTypeName:      trimAllPrefixes(fieldType.String(), h.packageName),
 			FieldTypeIsPointer: fieldTypeIsPointer,
+			Prefix:             prefix,
 		},
 	})
 }
 
-func handleMap(
-	packageName string,
+func (h *handler) handleMap(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
 	locallyDefined bool,
+	prefix string,
 ) []templateStep {
 	_, fieldTypeIsPointer := fieldType.(*types.Map).Elem().Underlying().(*types.Pointer)
 
@@ -614,7 +671,7 @@ func handleMap(
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,
-				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
 			},
 		},
 		{
@@ -622,8 +679,8 @@ func handleMap(
 			data: mutateFunctionData{
 				TypeName:              structSpec.Name.Name,
 				FieldName:             field.Names[0].Name,
-				FieldKeyTypeName:      trimAllPrefixes(fieldKeyType.String(), packageName),
-				FieldTypeName:         trimAllPrefixes(fieldType.String(), packageName),
+				FieldKeyTypeName:      trimAllPrefixes(fieldKeyType.String(), h.packageName),
+				FieldTypeName:         trimAllPrefixes(fieldType.String(), h.packageName),
 				FieldTypeIsPointer:    fieldTypeIsPointer,
 				FieldKeyTypeIsPointer: fieldKeyTypeIsPointer,
 			},
@@ -639,19 +696,20 @@ func handleMap(
 		data: mutateFunctionData{
 			TypeName:           structSpec.Name.Name,
 			FieldName:          field.Names[0].Name,
-			FieldKeyTypeName:   trimAllPrefixes(fieldKeyType.String(), packageName),
-			FieldTypeName:      trimAllPrefixes(fieldType.String(), packageName),
+			FieldKeyTypeName:   trimAllPrefixes(fieldKeyType.String(), h.packageName),
+			FieldTypeName:      trimAllPrefixes(fieldType.String(), h.packageName),
 			FieldTypeIsPointer: fieldTypeIsPointer,
+			Prefix:             prefix,
 		},
 	})
 }
 
-func handlePointer(
-	packageName string,
+func (h *handler) handlePointer(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
 	locallyDefined bool,
+	prefix string,
 ) []templateStep {
 	steps := []templateStep{
 		{
@@ -659,7 +717,7 @@ func handlePointer(
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,
-				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
 			},
 		},
 	}
@@ -673,17 +731,18 @@ func handlePointer(
 		data: mutateFunctionData{
 			TypeName:      structSpec.Name.Name,
 			FieldName:     field.Names[0].Name,
-			FieldTypeName: trimAllPrefixes(fieldType.String(), packageName),
+			FieldTypeName: trimAllPrefixes(fieldType.String(), h.packageName),
+			Prefix:        prefix,
 		},
 	})
 }
 
-func handleObject(
-	packageName string,
+func (h *handler) handleObject(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
 	locallyDefined bool,
+	prefix string,
 ) []templateStep {
 	steps := []templateStep{
 		{
@@ -691,7 +750,7 @@ func handleObject(
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,
-				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
 			},
 		},
 	}
@@ -705,17 +764,18 @@ func handleObject(
 		data: mutateFunctionData{
 			TypeName:      structSpec.Name.Name,
 			FieldName:     field.Names[0].Name,
-			FieldTypeName: trimAllPrefixes(fieldType.String(), packageName),
+			FieldTypeName: trimAllPrefixes(fieldType.String(), h.packageName),
+			Prefix:        prefix,
 		},
 	})
 }
 
-func handleOther(
-	packageName string,
+func (h *handler) handleOther(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
 	locallyDefined bool,
+	prefix string,
 ) []templateStep {
 	return []templateStep{
 		{
@@ -723,7 +783,7 @@ func handleOther(
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,
-				FieldTypeName: trimPackagePrefix(fieldType.String(), packageName),
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
 			},
 		},
 	}

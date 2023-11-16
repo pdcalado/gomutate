@@ -4,118 +4,14 @@ package main
 import (
 	"fmt"
 	"time"
+	"github.com/pdcalado/gomutate/changes"
 	
 )
-// Change represents a mutation applied to an object.
-type Change struct {
-	Prefix    string          `json:"prefix,omitempty"`
-	FieldName string          `json:"field_name,omitempty"`
-	Operation ChangeOperation `json:"operation,omitempty"`
-	OldValue  string          `json:"old_value,omitempty"`
-	NewValue  string          `json:"new_value,omitempty"`
-}
-
-// ChangeOperation defines a type used for change operation enums.
-type ChangeOperation string
-
-const (
-	ChangeOperationAdded   ChangeOperation = "Added"
-	ChangeOperationRemoved ChangeOperation = "Removed"
-	ChangeOperationUpdated ChangeOperation = "Updated"
-	ChangeOperationSet     ChangeOperation = "Set"
-	ChangeOperationClear   ChangeOperation = "Clear"
-)
-
-// ChangeFormatter defines an interface for formatting changes to human readable string.
-type ChangeFormatter interface {
-	Format(c *Change) string
-}
-
-// DefaultChangeFormatter provides basic change formatting functionality.
-type DefaultChangeFormatter struct{}
-
-// Format formats a change to a human readable string.
-func (f *DefaultChangeFormatter) Format(c *Change) string {
-	switch c.Operation {
-	case ChangeOperationAdded:
-		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.NewValue)
-	case ChangeOperationRemoved:
-		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.OldValue)
-	case ChangeOperationUpdated:
-		return fmt.Sprintf("%s%s %s: %s -> %s", c.Prefix, c.FieldName, c.Operation, c.OldValue, c.NewValue)
-	case ChangeOperationSet:
-		return fmt.Sprintf("%s%s %s: %s", c.Prefix, c.FieldName, c.Operation, c.NewValue)
-	case ChangeOperationClear:
-		return fmt.Sprintf("%s%s %s", c.Prefix, c.FieldName, c.Operation)
-	}
-	return ""
-}
-
-// DefaultChangeLogger provides basic change logging functionality.
-type DefaultChangeLogger struct {
-	prefix    string
-	changes   []Change
-	formatter ChangeFormatter
-}
-
-// NewDefaultChangeLogger creates a new instance of DefaultChangeLogger.
-func NewDefaultChangeLogger(prefix string) *DefaultChangeLogger {
-	return &DefaultChangeLogger{
-		prefix:    prefix,
-		formatter: &DefaultChangeFormatter{},
-	}
-}
-
-// Append appends a change to the change logger.
-func (c *DefaultChangeLogger) Append(change Change) {
-	change.Prefix = c.prefix + change.Prefix
-	c.changes = append(c.changes, change)
-}
-
-// ToString converts the change logger to a slice of human readable strings.
-func (c *DefaultChangeLogger) ToString() (result []string) {
-	for i := range c.changes {
-		result = append(result, c.formatter.Format(&c.changes[i]))
-	}
-	return
-}
-
-// ChainedChangeLogger implements ChangeLogger interface using an inner change logger.
-// Multiple change loggers are chained together by prepending prefixes.
-type ChainedChangeLogger struct {
-	prefix string
-	inner  ChangeLogger
-}
-
-// NewChainedChangeLogger creates a new instance of ChainedChangeLogger.
-func NewChainedChangeLogger(prefix string, inner ChangeLogger) *ChainedChangeLogger {
-	return &ChainedChangeLogger{
-		prefix: prefix,
-		inner:  inner,
-	}
-}
-
-// Append appends a change to the change logger.
-func (c *ChainedChangeLogger) Append(change Change) {
-	change.Prefix = c.prefix + change.Prefix
-	c.inner.Append(change)
-}
-
-// ToString converts the change logger to a slice of human readable strings.
-func (c *ChainedChangeLogger) ToString() []string {
-	return c.inner.ToString()
-}
-
-// ChangeLogger defines an interface for logging changes.
-type ChangeLogger interface {
-	Append(change Change)
-	ToString() []string
-}
 
 // MutatorAcme mutates the Acme object.
 type MutatorAcme struct {
 	inner   *Acme
-	changes ChangeLogger
+	changes changes.Logger
 }
 
 // NewMutatorAcme creates a new mutator for the Acme object.
@@ -125,7 +21,7 @@ func NewMutatorAcme(
 ) *MutatorAcme {
 	m := &MutatorAcme{
 		inner:   obj,
-		changes: NewDefaultChangeLogger(""),
+		changes: changes.NewDefaultLogger(changes.PrefixEmpty),
 	}
 
 	for _, option := range options {
@@ -136,9 +32,9 @@ func NewMutatorAcme(
 }
 
 // WithChangeLogger sets the change logger for the mutator.
-func WithChangeLogger(changeLogger ChangeLogger) func(*MutatorAcme) {
+func WithChangeLogger(logger changes.Logger) func(*MutatorAcme) {
 	return func(m *MutatorAcme) {
-		m.changes = changeLogger
+		m.changes = logger
 	}
 }
 
@@ -149,10 +45,10 @@ func (m *MutatorAcme) FormatChanges() []string {
 
 type MutatorAddress struct {
 	inner   *Address
-	changes ChangeLogger
+	changes changes.Logger
 }
 
-func NewMutatorAddress(obj *Address, changes ChangeLogger) *MutatorAddress {
+func NewMutatorAddress(obj *Address, changes changes.Logger) *MutatorAddress {
 	return &MutatorAddress{
 		inner:   obj,
 		changes: changes,
@@ -161,10 +57,10 @@ func NewMutatorAddress(obj *Address, changes ChangeLogger) *MutatorAddress {
 
 type MutatorVat struct {
 	inner   *Vat
-	changes ChangeLogger
+	changes changes.Logger
 }
 
-func NewMutatorVat(obj *Vat, changes ChangeLogger) *MutatorVat {
+func NewMutatorVat(obj *Vat, changes changes.Logger) *MutatorVat {
 	return &MutatorVat{
 		inner:   obj,
 		changes: changes,
@@ -173,10 +69,10 @@ func NewMutatorVat(obj *Vat, changes ChangeLogger) *MutatorVat {
 
 type MutatorEmployee struct {
 	inner   *Employee
-	changes ChangeLogger
+	changes changes.Logger
 }
 
-func NewMutatorEmployee(obj *Employee, changes ChangeLogger) *MutatorEmployee {
+func NewMutatorEmployee(obj *Employee, changes changes.Logger) *MutatorEmployee {
 	return &MutatorEmployee{
 		inner:   obj,
 		changes: changes,
@@ -185,15 +81,24 @@ func NewMutatorEmployee(obj *Employee, changes ChangeLogger) *MutatorEmployee {
 
 type MutatorProject struct {
 	inner   *Project
-	changes ChangeLogger
+	changes changes.Logger
 }
 
-func NewMutatorProject(obj *Project, changes ChangeLogger) *MutatorProject {
+func NewMutatorProject(obj *Project, changes changes.Logger) *MutatorProject {
 	return &MutatorProject{
 		inner:   obj,
 		changes: changes,
 	}
 }
+
+
+const (
+	MutationPrefixAddress changes.Prefix = "Address"
+	MutationPrefixEmployees changes.Prefix = "Employees"
+	MutationPrefixEmployeesProjects changes.Prefix = "Projects"
+	MutationPrefixNicknames changes.Prefix = "Nicknames"
+	MutationPrefixVat changes.Prefix = "Vat"
+)
 
 // SetName mutates the Name of the Acme object
 func (m *MutatorAcme) SetName(value string) bool {
@@ -201,9 +106,9 @@ func (m *MutatorAcme) SetName(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -218,9 +123,9 @@ func (m *MutatorAcme) SetYearOfBirth(value int) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "YearOfBirth",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.YearOfBirth),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -235,9 +140,9 @@ func (m *MutatorEmployee) SetName(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -252,9 +157,9 @@ func (m *MutatorEmployee) SetPosition(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Position",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Position),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -269,9 +174,9 @@ func (m *MutatorEmployee) SetWage(value int) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Wage",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Wage),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -286,9 +191,9 @@ func (m *MutatorEmployee) SetJoinedAt(value time.Time) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "JoinedAt",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.JoinedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -303,9 +208,9 @@ func (m *MutatorProject) SetName(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -320,9 +225,9 @@ func (m *MutatorProject) SetValue(value int) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Value",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Value),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -337,9 +242,9 @@ func (m *MutatorProject) SetStartedAt(value time.Time) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "StartedAt",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.StartedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -354,9 +259,9 @@ func (m *MutatorProject) SetFinishedAt(value time.Time) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "FinishedAt",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.FinishedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -372,12 +277,12 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 		return false
 	}
 
-	operation := ChangeOperationSet
+	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = ChangeOperationClear
+		operation = changes.OperationClear
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Projects",
 		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Projects),
@@ -390,9 +295,9 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 
 // AppendProjects appends a Projects element of the Employee object.
 func (m *MutatorEmployee) AppendProjects(value ...Project) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Projects",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Projects = append(m.inner.Projects, value...)
@@ -400,9 +305,9 @@ func (m *MutatorEmployee) AppendProjects(value ...Project) {
 
 // RemoveProjects removes a Projects element of the Employee object.
 func (m *MutatorEmployee) RemoveProjects(index int) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Projects",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Projects[index]),
 	})
 	m.inner.Projects = append(m.inner.Projects[:index], m.inner.Projects[index+1:]...)
@@ -410,7 +315,7 @@ func (m *MutatorEmployee) RemoveProjects(index int) {
 
 // ProjectsAt returns a mutator for Projects element at index of the Employee object.
 func (m *MutatorEmployee) ProjectsAt(index int) *MutatorProject {
-	return NewMutatorProject(&m.inner.Projects[index], NewChainedChangeLogger(fmt.Sprintf("Projects "), m.changes))
+	return NewMutatorProject(&m.inner.Projects[index], changes.NewChainedLogger(MutationPrefixEmployeesProjects, m.changes))
 }
 
 
@@ -421,12 +326,12 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 		return false
 	}
 
-	operation := ChangeOperationSet
+	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = ChangeOperationClear
+		operation = changes.OperationClear
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Employees",
 		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Employees),
@@ -439,9 +344,9 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 
 // AppendEmployees appends a Employees element of the Acme object.
 func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Employees",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.Employees = append(m.inner.Employees, value...)
@@ -449,9 +354,9 @@ func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
 
 // RemoveEmployees removes a Employees element of the Acme object.
 func (m *MutatorAcme) RemoveEmployees(index int) {
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Employees",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Employees[index]),
 	})
 	m.inner.Employees = append(m.inner.Employees[:index], m.inner.Employees[index+1:]...)
@@ -459,7 +364,7 @@ func (m *MutatorAcme) RemoveEmployees(index int) {
 
 // EmployeesAt returns a mutator for Employees element at index of the Acme object.
 func (m *MutatorAcme) EmployeesAt(index int) *MutatorEmployee {
-	return NewMutatorEmployee(m.inner.Employees[index], NewChainedChangeLogger(fmt.Sprintf("Employees "), m.changes))
+	return NewMutatorEmployee(m.inner.Employees[index], changes.NewChainedLogger(MutationPrefixEmployees, m.changes))
 }
 
 // EmployeesByPtr returns a mutator for Employees element given by a pointer of type Acme.
@@ -478,9 +383,9 @@ func (m *MutatorAddress) SetStreet(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Street",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Street),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -495,9 +400,9 @@ func (m *MutatorAddress) SetNumber(value int) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Number",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -512,9 +417,9 @@ func (m *MutatorAddress) SetCity(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "City",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.City),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -529,9 +434,9 @@ func (m *MutatorAddress) SetZip(value int) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Zip",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Zip),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -551,12 +456,12 @@ func (m *MutatorAddress) SetLocation(value *string) bool {
 		return false
 	}
 
-	operation := ChangeOperationClear
+	operation := changes.OperationClear
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Location)
 
 	if value != nil {
-		operation = ChangeOperationSet
+		operation = changes.OperationSet
 		valueStr = fmt.Sprintf("%+v", *value)
 	}
 
@@ -564,7 +469,7 @@ func (m *MutatorAddress) SetLocation(value *string) bool {
 		oldValueStr = fmt.Sprintf("%+v", *m.inner.Location)
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Location",
 		Operation: operation,
 		OldValue:  oldValueStr,
@@ -586,12 +491,12 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 		return false
 	}
 
-	operation := ChangeOperationClear
+	operation := changes.OperationClear
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Address)
 
 	if value != nil {
-		operation = ChangeOperationSet
+		operation = changes.OperationSet
 		valueStr = fmt.Sprintf("%+v", *value)
 	}
 
@@ -599,7 +504,7 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 		oldValueStr = fmt.Sprintf("%+v", *m.inner.Address)
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Address",
 		Operation: operation,
 		OldValue:  oldValueStr,
@@ -618,7 +523,7 @@ func (m *MutatorAcme) Address() *MutatorAddress {
 		m.inner.Address = &Address{}
 	}
 
-	return NewMutatorAddress(m.inner.Address, NewChainedChangeLogger(fmt.Sprintf("Address "), m.changes))
+	return NewMutatorAddress(m.inner.Address, changes.NewChainedLogger(MutationPrefixAddress, m.changes))
 }
 
 // SetNumber mutates the Number of the Vat object
@@ -627,9 +532,9 @@ func (m *MutatorVat) SetNumber(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Number",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -644,9 +549,9 @@ func (m *MutatorVat) SetType(value string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Type",
-		Operation: ChangeOperationUpdated,
+		Operation: changes.OperationUpdated,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Type),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -658,9 +563,9 @@ func (m *MutatorVat) SetType(value string) bool {
 // SetVat sets Vat of the Acme object
 func (m *MutatorAcme) SetVat(value *Vat) bool {
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Vat",
-		Operation: ChangeOperationSet,
+		Operation: changes.OperationSet,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Vat),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -671,8 +576,7 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 
 // Vat returns a mutator for Vat of the Acme object.
 func (m *MutatorAcme) Vat() *MutatorVat {
-
-	return NewMutatorVat(&m.inner.Vat, NewChainedChangeLogger("Vat ", m.changes))
+	return NewMutatorVat(&m.inner.Vat, changes.NewChainedLogger(MutationPrefixVat, m.changes))
 }
 
 // SetNicknames sets Nicknames of the Acme object
@@ -682,12 +586,12 @@ func (m *MutatorAcme) SetNicknames(value map[string]*Employee) bool {
 		return false
 	}
 
-	operation := ChangeOperationSet
+	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = ChangeOperationClear
+		operation = changes.OperationClear
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Nicknames",
 		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Nicknames),
@@ -708,9 +612,9 @@ func (m *MutatorAcme) InsertNicknames(
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Nicknames",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
 	})
 
@@ -730,9 +634,9 @@ func (m *MutatorAcme) RemoveNicknames(key string) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Nicknames",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.Nicknames[key]),
 	})
 	delete(m.inner.Nicknames, key)
@@ -744,7 +648,7 @@ func (m *MutatorAcme) RemoveNicknames(key string) bool {
 func (m *MutatorAcme) NicknamesWithKey(key string) *MutatorEmployee {
 	return NewMutatorEmployee(
 		m.inner.Nicknames[key],
-		NewChainedChangeLogger(fmt.Sprintf("Nicknames "), m.changes),
+		changes.NewChainedLogger(MutationPrefixNicknames, m.changes),
 	)
 }
 
@@ -755,12 +659,12 @@ func (m *MutatorAcme) SetEquity(value map[*Employee]int) bool {
 		return false
 	}
 
-	operation := ChangeOperationSet
+	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = ChangeOperationClear
+		operation = changes.OperationClear
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Equity",
 		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Equity),
@@ -781,9 +685,9 @@ func (m *MutatorAcme) InsertEquity(
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Equity",
-		Operation: ChangeOperationAdded,
+		Operation: changes.OperationAdded,
 		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
 	})
 
@@ -803,9 +707,9 @@ func (m *MutatorAcme) RemoveEquity(key *Employee) bool {
 		return false
 	}
 
-	m.changes.Append(Change{
+	m.changes.Append(changes.Change{
 		FieldName: "Equity",
-		Operation: ChangeOperationRemoved,
+		Operation: changes.OperationRemoved,
 		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.Equity[key]),
 	})
 	delete(m.inner.Equity, key)
