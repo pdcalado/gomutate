@@ -40,6 +40,10 @@ func (e *Employee) String() string {
 	return fmt.Sprintf("%s - %s - %v - %s - %v", e.Name, e.Position, e.Wage, e.JoinedAt, e.Projects)
 }
 
+func (e *Employee) KeyForChanges() string {
+	return e.Name
+}
+
 type Project struct {
 	Name       string
 	Value      int

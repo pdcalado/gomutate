@@ -31,10 +31,10 @@ import (
 )
 `
 
-	prefixTemplate string = `
+	fieldNamesTemplate string = `
 {{with .}}
 const ({{range .}}
-	{{.ConstName}} changes.Prefix = "{{.ConstValue}}"{{end}}
+	{{.ConstName}} changes.FieldName = "{{.ConstValue}}"{{end}}
 ){{end}}
 `
 
@@ -96,9 +96,16 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.{{.FieldName}}).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -118,7 +125,7 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 
 	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = changes.OperationClear
+		operation = changes.OperationCleared
 	}
 
 	m.changes.Append(changes.Change{
@@ -147,7 +154,8 @@ func (m *Mutator{{.TypeName}}) Insert{{.FieldName}}(
 	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+		Key:       changes.IntoKey(key),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 
 	if m.inner.{{.FieldName}} == nil {
@@ -169,7 +177,8 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
 		Operation: changes.OperationRemoved,
-		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.{{.FieldName}}[key]),
+		Key:       changes.IntoKey(key),
+		OldValue:  fmt.Sprintf("%+v", m.inner.{{.FieldName}}[key]),
 	})
 	delete(m.inner.{{.FieldName}}, key)
 
@@ -227,7 +236,7 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
-	operation := changes.OperationClear
+	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.{{.FieldName}})
 
@@ -261,14 +270,23 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
 		m.inner.{{.FieldName}} = &{{.FieldTypeName}}{}
 	}
 
-	return NewMutator{{.FieldTypeName}}(m.inner.{{.FieldName}}, changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
+	prefix := changes.NewPrefix(MutationPrefix{{.Prefix}})
+
+	return NewMutator{{.FieldTypeName}}(m.inner.{{.FieldName}}, changes.NewChainedLogger(prefix, m.changes))
 }
 `
 
 	mutateSliceElementTemplate = `
 // {{.FieldName}}At returns a mutator for {{.FieldName}} element at index of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) {{.FieldName}}At(index int) *Mutator{{.FieldTypeName}} {
-	return NewMutator{{.FieldTypeName}}({{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index], changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
+	object := {{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[index]
+
+	prefix := changes.NewPrefixWithKey(MutationPrefix{{.Prefix}}, changes.IntoKey(object))
+
+	return NewMutator{{.FieldTypeName}}(
+		object,
+		changes.NewChainedLogger(prefix, m.changes),
+	)
 }
 {{if .FieldTypeIsPointer}}
 // {{.FieldName}}ByPtr returns a mutator for {{.FieldName}} element given by a pointer of type {{.TypeName}}.
@@ -285,16 +303,21 @@ func (m *Mutator{{.TypeName}}) {{.FieldName}}ByPtr(ptr *{{.FieldTypeName}}) *Mut
 	mutateObjTemplate = `
 // {{.FieldName}} returns a mutator for {{.FieldName}} of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) {{.FieldName}}() *Mutator{{.FieldTypeName}} {
-	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes))
+	prefix := changes.NewPrefix(MutationPrefix{{.Prefix}})
+	return NewMutator{{.FieldTypeName}}(&m.inner.{{.FieldName}}, changes.NewChainedLogger(prefix, m.changes))
 }
 `
 
 	mutateMapElementTemplate = `
 // {{.FieldName}}WithKey returns a mutator for {{.FieldName}} map element {{.TypeName}} object with given key.
 func (m *Mutator{{.TypeName}}) {{.FieldName}}WithKey(key {{.FieldKeyTypeName}}) *Mutator{{.FieldTypeName}} {
+	object := {{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[key]
+
+	prefix := changes.NewPrefixWithKey(MutationPrefix{{.Prefix}}, changes.IntoKey(object))
+
 	return NewMutator{{.FieldTypeName}}(
-		{{if .FieldTypeIsPointer}}{{else}}&{{end}}m.inner.{{.FieldName}}[key],
-		changes.NewChainedLogger(MutationPrefix{{.Prefix}}, m.changes),
+		object,
+		changes.NewChainedLogger(prefix, m.changes),
 	)
 }
 `
@@ -467,7 +490,7 @@ func main() {
 
 	header := headerData{
 		PackageName: packageName,
-		Imports:     []string{"fmt", "time", "github.com/pdcalado/gomutate/changes"},
+		Imports:     []string{"fmt", "time", "reflect", "github.com/pdcalado/gomutate/changes"},
 	}
 
 	templateSteps := []templateStep{
@@ -543,7 +566,7 @@ func (h *handler) handle(structSpec *ast.TypeSpec) []templateStep {
 
 	return append([]templateStep{
 		{
-			template: prefixTemplate,
+			template: fieldNamesTemplate,
 			data:     prefixes,
 		},
 	}, steps...)

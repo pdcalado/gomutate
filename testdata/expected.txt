@@ -1,14 +1,14 @@
-YearOfBirth Updated: 2018 -> 2019
-Address Clear
-Address Set: {Street:Liverpool Street Number:300 City:London Zip:45001 Location:<nil>}
-Vat Type Updated: Company -> Company Ltd.
-Address Street Updated: Liverpool Street -> Baker Street
-Address Location Set: UK
-Employees Name Updated: John Doe -> John Smith
-Employees Projects Name Updated: Project 1 -> Project 1 - Updated
-Employees Added: [Roger Smith - CFO - 90000 - 2023-10-30 13:14:15 +0000 UTC - []]
-Nicknames Set: map[Johnny:John Smith - CEO - 100000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 1 - Updated 100000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 2 200000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]]
-Nicknames Added: with key 'Janey' and value: Jane Doe - CTO - 80000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 3 300000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 4 400000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]
-Nicknames Removed: with key 'Johnny' and value: John Smith - CEO - 100000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 1 - Updated 100000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 2 200000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]
-Nicknames Wage Updated: 80000 -> 50000
-Equity Added: with key 'Jane Doe - CTO - 50000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 3 300000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 4 400000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]' and value: 1000
+YearOfBirth updated from '2018' to '2019'
+Address cleared, value was '{Street:Main Street Number:123 City:New York Zip:10001 Location:<nil>}'
+Address set to '{Street:Liverpool Street Number:300 City:London Zip:45001 Location:<nil>}'
+Vat Type updated from 'Company' to 'Company Ltd.'
+Address Street updated from 'Liverpool Street' to 'Baker Street'
+Address Location set to 'UK'
+Employees[John Doe] Name updated from 'John Doe' to 'John Smith'
+Employees[John Smith] Projects[&{Project 1 100000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}] Name updated from 'Project 1' to 'Project 1 - Updated'
+Employees added with value '[Roger Smith - CFO - 90000 - 2023-10-30 13:14:15 +0000 UTC - []]'
+Nicknames set to 'map[Johnny:John Smith - CEO - 100000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 1 - Updated 100000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 2 200000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]]'
+Nicknames[Janey] added with value 'Jane Doe - CTO - 80000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 3 300000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 4 400000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]'
+Nicknames[Johnny] removed, value was 'John Smith - CEO - 100000 - 2023-10-30 13:14:15 +0000 UTC - [{Project 1 - Updated 100000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC} {Project 2 200000 2023-10-30 13:14:15 +0000 UTC 2023-11-29 13:14:15 +0000 UTC}]'
+Nicknames[Jane Doe] Wage updated from '80000' to '50000'
+Equity[Jane Doe] added with value '1000'

@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"time"
+	"reflect"
 	"github.com/pdcalado/gomutate/changes"
 	
 )
@@ -93,11 +94,11 @@ func NewMutatorProject(obj *Project, changes changes.Logger) *MutatorProject {
 
 
 const (
-	MutationPrefixAddress changes.Prefix = "Address"
-	MutationPrefixEmployees changes.Prefix = "Employees"
-	MutationPrefixEmployeesProjects changes.Prefix = "Projects"
-	MutationPrefixNicknames changes.Prefix = "Nicknames"
-	MutationPrefixVat changes.Prefix = "Vat"
+	MutationPrefixAddress changes.FieldName = "Address"
+	MutationPrefixEmployees changes.FieldName = "Employees"
+	MutationPrefixEmployeesProjects changes.FieldName = "Projects"
+	MutationPrefixNicknames changes.FieldName = "Nicknames"
+	MutationPrefixVat changes.FieldName = "Vat"
 )
 
 // SetName mutates the Name of the Acme object
@@ -106,9 +107,16 @@ func (m *MutatorAcme) SetName(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Name).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -123,9 +131,16 @@ func (m *MutatorAcme) SetYearOfBirth(value int) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.YearOfBirth).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "YearOfBirth",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.YearOfBirth),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -140,9 +155,16 @@ func (m *MutatorEmployee) SetName(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Name).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -157,9 +179,16 @@ func (m *MutatorEmployee) SetPosition(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Position).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Position",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Position),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -174,9 +203,16 @@ func (m *MutatorEmployee) SetWage(value int) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Wage).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Wage",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Wage),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -191,9 +227,16 @@ func (m *MutatorEmployee) SetJoinedAt(value time.Time) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.JoinedAt).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "JoinedAt",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.JoinedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -208,9 +251,16 @@ func (m *MutatorProject) SetName(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Name).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Name",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Name),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -225,9 +275,16 @@ func (m *MutatorProject) SetValue(value int) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Value).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Value",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Value),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -242,9 +299,16 @@ func (m *MutatorProject) SetStartedAt(value time.Time) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.StartedAt).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "StartedAt",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.StartedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -259,9 +323,16 @@ func (m *MutatorProject) SetFinishedAt(value time.Time) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.FinishedAt).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "FinishedAt",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.FinishedAt),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -279,7 +350,7 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 
 	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = changes.OperationClear
+		operation = changes.OperationCleared
 	}
 
 	m.changes.Append(changes.Change{
@@ -315,7 +386,14 @@ func (m *MutatorEmployee) RemoveProjects(index int) {
 
 // ProjectsAt returns a mutator for Projects element at index of the Employee object.
 func (m *MutatorEmployee) ProjectsAt(index int) *MutatorProject {
-	return NewMutatorProject(&m.inner.Projects[index], changes.NewChainedLogger(MutationPrefixEmployeesProjects, m.changes))
+	object := &m.inner.Projects[index]
+
+	prefix := changes.NewPrefixWithKey(MutationPrefixEmployeesProjects, changes.IntoKey(object))
+
+	return NewMutatorProject(
+		object,
+		changes.NewChainedLogger(prefix, m.changes),
+	)
 }
 
 
@@ -328,7 +406,7 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 
 	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = changes.OperationClear
+		operation = changes.OperationCleared
 	}
 
 	m.changes.Append(changes.Change{
@@ -364,7 +442,14 @@ func (m *MutatorAcme) RemoveEmployees(index int) {
 
 // EmployeesAt returns a mutator for Employees element at index of the Acme object.
 func (m *MutatorAcme) EmployeesAt(index int) *MutatorEmployee {
-	return NewMutatorEmployee(m.inner.Employees[index], changes.NewChainedLogger(MutationPrefixEmployees, m.changes))
+	object := m.inner.Employees[index]
+
+	prefix := changes.NewPrefixWithKey(MutationPrefixEmployees, changes.IntoKey(object))
+
+	return NewMutatorEmployee(
+		object,
+		changes.NewChainedLogger(prefix, m.changes),
+	)
 }
 
 // EmployeesByPtr returns a mutator for Employees element given by a pointer of type Acme.
@@ -383,9 +468,16 @@ func (m *MutatorAddress) SetStreet(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Street).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Street",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Street),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -400,9 +492,16 @@ func (m *MutatorAddress) SetNumber(value int) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Number).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Number",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -417,9 +516,16 @@ func (m *MutatorAddress) SetCity(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.City).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "City",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.City),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -434,9 +540,16 @@ func (m *MutatorAddress) SetZip(value int) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Zip).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Zip",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Zip),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -456,7 +569,7 @@ func (m *MutatorAddress) SetLocation(value *string) bool {
 		return false
 	}
 
-	operation := changes.OperationClear
+	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Location)
 
@@ -491,7 +604,7 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 		return false
 	}
 
-	operation := changes.OperationClear
+	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Address)
 
@@ -523,7 +636,9 @@ func (m *MutatorAcme) Address() *MutatorAddress {
 		m.inner.Address = &Address{}
 	}
 
-	return NewMutatorAddress(m.inner.Address, changes.NewChainedLogger(MutationPrefixAddress, m.changes))
+	prefix := changes.NewPrefix(MutationPrefixAddress)
+
+	return NewMutatorAddress(m.inner.Address, changes.NewChainedLogger(prefix, m.changes))
 }
 
 // SetNumber mutates the Number of the Vat object
@@ -532,9 +647,16 @@ func (m *MutatorVat) SetNumber(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Number).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Number",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Number),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -549,9 +671,16 @@ func (m *MutatorVat) SetType(value string) bool {
 		return false
 	}
 
+	operation := changes.OperationUpdated
+	if reflect.ValueOf(m.inner.Type).IsZero() {
+		operation = changes.OperationSet
+	} else if reflect.ValueOf(value).IsZero() {
+		operation = changes.OperationCleared
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Type",
-		Operation: changes.OperationUpdated,
+		Operation: operation,
 		OldValue:  fmt.Sprintf("%+v", m.inner.Type),
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
@@ -576,7 +705,8 @@ func (m *MutatorAcme) SetVat(value *Vat) bool {
 
 // Vat returns a mutator for Vat of the Acme object.
 func (m *MutatorAcme) Vat() *MutatorVat {
-	return NewMutatorVat(&m.inner.Vat, changes.NewChainedLogger(MutationPrefixVat, m.changes))
+	prefix := changes.NewPrefix(MutationPrefixVat)
+	return NewMutatorVat(&m.inner.Vat, changes.NewChainedLogger(prefix, m.changes))
 }
 
 // SetNicknames sets Nicknames of the Acme object
@@ -588,7 +718,7 @@ func (m *MutatorAcme) SetNicknames(value map[string]*Employee) bool {
 
 	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = changes.OperationClear
+		operation = changes.OperationCleared
 	}
 
 	m.changes.Append(changes.Change{
@@ -615,7 +745,8 @@ func (m *MutatorAcme) InsertNicknames(
 	m.changes.Append(changes.Change{
 		FieldName: "Nicknames",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+		Key:       changes.IntoKey(key),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 
 	if m.inner.Nicknames == nil {
@@ -637,7 +768,8 @@ func (m *MutatorAcme) RemoveNicknames(key string) bool {
 	m.changes.Append(changes.Change{
 		FieldName: "Nicknames",
 		Operation: changes.OperationRemoved,
-		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.Nicknames[key]),
+		Key:       changes.IntoKey(key),
+		OldValue:  fmt.Sprintf("%+v", m.inner.Nicknames[key]),
 	})
 	delete(m.inner.Nicknames, key)
 
@@ -646,9 +778,13 @@ func (m *MutatorAcme) RemoveNicknames(key string) bool {
 
 // NicknamesWithKey returns a mutator for Nicknames map element Acme object with given key.
 func (m *MutatorAcme) NicknamesWithKey(key string) *MutatorEmployee {
+	object := m.inner.Nicknames[key]
+
+	prefix := changes.NewPrefixWithKey(MutationPrefixNicknames, changes.IntoKey(object))
+
 	return NewMutatorEmployee(
-		m.inner.Nicknames[key],
-		changes.NewChainedLogger(MutationPrefixNicknames, m.changes),
+		object,
+		changes.NewChainedLogger(prefix, m.changes),
 	)
 }
 
@@ -661,7 +797,7 @@ func (m *MutatorAcme) SetEquity(value map[*Employee]int) bool {
 
 	operation := changes.OperationSet
 	if len(value) == 0 {
-		operation = changes.OperationClear
+		operation = changes.OperationCleared
 	}
 
 	m.changes.Append(changes.Change{
@@ -688,7 +824,8 @@ func (m *MutatorAcme) InsertEquity(
 	m.changes.Append(changes.Change{
 		FieldName: "Equity",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, value),
+		Key:       changes.IntoKey(key),
+		NewValue:  fmt.Sprintf("%+v", value),
 	})
 
 	if m.inner.Equity == nil {
@@ -710,7 +847,8 @@ func (m *MutatorAcme) RemoveEquity(key *Employee) bool {
 	m.changes.Append(changes.Change{
 		FieldName: "Equity",
 		Operation: changes.OperationRemoved,
-		OldValue:  fmt.Sprintf("with key '%+v' and value: %+v", key, m.inner.Equity[key]),
+		Key:       changes.IntoKey(key),
+		OldValue:  fmt.Sprintf("%+v", m.inner.Equity[key]),
 	})
 	delete(m.inner.Equity, key)
 
