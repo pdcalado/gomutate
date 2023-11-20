@@ -102,10 +102,16 @@ type DefaultFormatter struct {
 }
 
 // NewDefaultFormatter creates a new instance of DefaultFormatter.
-func NewDefaultFormatter(opts ...func(*DefaultFormatter)) *DefaultFormatter {
-	return &DefaultFormatter{
+func NewDefaultFormatter(options ...func(*DefaultFormatter)) *DefaultFormatter {
+	def := &DefaultFormatter{
 		printNameAndKey: printNameAndKey,
 	}
+
+	for _, option := range options {
+		option(def)
+	}
+
+	return def
 }
 
 // WithPrintNameAndKey sets the function used for printing a prefix as name with key.
