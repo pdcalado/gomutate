@@ -189,10 +189,15 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 	sliceAppendTemplate = `
 // Append{{.FieldName}} appends a {{.FieldName}} element of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
+	appended := value
+	if len(value) == 1 {
+		appended = value[0]
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "{{.FieldName}}",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("%+v", value),
+		NewValue:  fmt.Sprintf("%+v", appended),
 	})
 	m.inner.{{.FieldName}} = append(m.inner.{{.FieldName}}, value...)
 }
