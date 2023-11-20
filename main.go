@@ -189,7 +189,7 @@ func (m *Mutator{{.TypeName}}) Remove{{.FieldName}}(key {{if .FieldKeyTypeIsPoin
 	sliceAppendTemplate = `
 // Append{{.FieldName}} appends a {{.FieldName}} element of the {{.TypeName}} object.
 func (m *Mutator{{.TypeName}}) Append{{.FieldName}}(value ...{{if .FieldTypeIsPointer}}*{{end}}{{.FieldTypeName}}) {
-	appended := value
+	var appended any = value
 	if len(value) == 1 {
 		appended = value[0]
 	}

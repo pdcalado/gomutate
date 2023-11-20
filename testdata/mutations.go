@@ -366,10 +366,15 @@ func (m *MutatorEmployee) SetProjects(value []Project) bool {
 
 // AppendProjects appends a Projects element of the Employee object.
 func (m *MutatorEmployee) AppendProjects(value ...Project) {
+	var appended any = value
+	if len(value) == 1 {
+		appended = value[0]
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Projects",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("%+v", value),
+		NewValue:  fmt.Sprintf("%+v", appended),
 	})
 	m.inner.Projects = append(m.inner.Projects, value...)
 }
@@ -422,10 +427,15 @@ func (m *MutatorAcme) SetEmployees(value []*Employee) bool {
 
 // AppendEmployees appends a Employees element of the Acme object.
 func (m *MutatorAcme) AppendEmployees(value ...*Employee) {
+	var appended any = value
+	if len(value) == 1 {
+		appended = value[0]
+	}
+
 	m.changes.Append(changes.Change{
 		FieldName: "Employees",
 		Operation: changes.OperationAdded,
-		NewValue:  fmt.Sprintf("%+v", value),
+		NewValue:  fmt.Sprintf("%+v", appended),
 	})
 	m.inner.Employees = append(m.inner.Employees, value...)
 }
