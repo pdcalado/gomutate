@@ -97,27 +97,45 @@ type Formatter interface {
 }
 
 // DefaultFormatter provides basic change formatting functionality.
-type DefaultFormatter struct{}
-
-// default method for printing a prefix
-func printPrefix(prefix *Prefix) string {
-	if prefix.Key == "" {
-		return string(prefix.Name)
-	}
-	return fmt.Sprintf("%s[%s]", prefix.Name, prefix.Key)
+type DefaultFormatter struct {
+	printNameAndKey func(name, key string) string
 }
 
-func joinPrefixes(prefixes []Prefix) string {
+// NewDefaultFormatter creates a new instance of DefaultFormatter.
+func NewDefaultFormatter(opts ...func(*DefaultFormatter)) *DefaultFormatter {
+	return &DefaultFormatter{
+		printNameAndKey: printNameAndKey,
+	}
+}
+
+// WithPrintNameAndKey sets the function used for printing a prefix as name with key.
+func WithPrintNameAndKey(printNameAndKey func(name, key string) string) func(*DefaultFormatter) {
+	return func(f *DefaultFormatter) {
+		f.printNameAndKey = printNameAndKey
+	}
+}
+
+// default method for printing a prefix as name with key.
+// Uses the format "name[key]".
+func printNameAndKey(name, key string) string {
+	if key == "" {
+		return string(name)
+	}
+	return fmt.Sprintf("%s[%s]", name, key)
+}
+
+func (f *DefaultFormatter) joinPrefixes(prefixes []Prefix) string {
 	result := ""
 	for i := range prefixes {
 		if prefixes[i].Name == FieldNameEmpty {
 			continue
 		}
 
+		nameAndKey := f.printNameAndKey(string(prefixes[i].Name), prefixes[i].Key)
 		if result == "" {
-			result = printPrefix(&prefixes[i])
+			result = nameAndKey
 		} else {
-			result = fmt.Sprintf("%s %s", result, printPrefix(&prefixes[i]))
+			result = fmt.Sprintf("%s %s", result, nameAndKey)
 		}
 	}
 
@@ -129,11 +147,11 @@ func joinPrefixes(prefixes []Prefix) string {
 
 // Format formats a change to a human readable string.
 func (f *DefaultFormatter) Format(c *Change) string {
-	prefix := joinPrefixes(c.Prefix)
+	prefix := f.joinPrefixes(c.Prefix)
 
 	fieldName := c.FieldName
 	if c.Key != "" {
-		fieldName = fmt.Sprintf("%s[%s]", fieldName, c.Key)
+		fieldName = f.printNameAndKey(fieldName, c.Key)
 	}
 
 	switch c.Operation {
@@ -162,7 +180,7 @@ type DefaultLogger struct {
 func NewDefaultLogger(prefix Prefix) *DefaultLogger {
 	return &DefaultLogger{
 		prefix:    prefix,
-		formatter: &DefaultFormatter{},
+		formatter: NewDefaultFormatter(),
 	}
 }
 
