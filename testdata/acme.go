@@ -49,4 +49,5 @@ type Project struct {
 	Value      int
 	StartedAt  time.Time
 	FinishedAt time.Time
+	SeqID      []byte
 }

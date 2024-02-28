@@ -115,6 +115,35 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 }
 `
 
+	mutateByteSliceTemplate = `
+// Set{{.FieldName}} mutates the {{.FieldName}} of the {{.TypeName}} object
+func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool {
+	if bytes.Equal(m.inner.{{.FieldName}}, value) {
+		return false
+	}
+
+	operation := changes.OperationUpdated
+	if len(m.inner.{{.FieldName}}) == 0 {
+		operation = changes.OperationSet
+	} else if len(value) == 0 {
+		operation = changes.OperationCleared
+	}
+
+	oldValue := base64.StdEncoding.EncodeToString(m.inner.{{.FieldName}})
+	newValue := base64.StdEncoding.EncodeToString(value)
+
+	m.changes.Append(changes.Change{
+		FieldName: "{{.FieldName}}",
+		Operation: operation,
+		OldValue:  oldValue,
+		NewValue:  newValue,
+	})
+	m.inner.{{.FieldName}} = value
+
+	return true
+}
+`
+
 	mapOrSliceSetTemplate = `
 // Set{{.FieldName}} sets {{.FieldName}} of the {{.TypeName}} object
 func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool {
@@ -495,7 +524,7 @@ func main() {
 
 	header := headerData{
 		PackageName: packageName,
-		Imports:     []string{"fmt", "time", "reflect", "github.com/pdcalado/gomutate/changes"},
+		Imports:     []string{"fmt", "encoding/base64", "bytes", "time", "reflect", "github.com/pdcalado/gomutate/changes"},
 	}
 
 	templateSteps := []templateStep{
@@ -617,7 +646,13 @@ func (h *handler) handleStructType(
 
 		switch fieldType.(type) {
 		case *types.Slice:
-			toAppend = h.handleSlice(structSpec, field, fieldType, locallyDefined, fieldPrefix)
+			underlyingType, isBasic := fieldType.(*types.Slice).Elem().Underlying().(*types.Basic)
+			fieldTypeIsByte := isBasic && underlyingType.Kind() == types.Byte
+			if fieldTypeIsByte {
+				toAppend = h.handleByteSlice(structSpec, field, fieldType)
+			} else {
+				toAppend = h.handleSlice(structSpec, field, fieldType, locallyDefined, fieldPrefix)
+			}
 		case *types.Map:
 			toAppend = h.handleMap(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 		case *types.Pointer:
@@ -626,7 +661,7 @@ func (h *handler) handleStructType(
 			if locallyDefined { // may be a struct non-pointer type
 				toAppend = h.handleObject(structSpec, field, fieldType, locallyDefined, fieldPrefix)
 			} else {
-				toAppend = h.handleOther(structSpec, field, fieldType, locallyDefined, fieldPrefix)
+				toAppend = h.handleOther(structSpec, field, fieldType)
 			}
 		}
 
@@ -802,12 +837,27 @@ func (h *handler) handleOther(
 	structSpec *ast.TypeSpec,
 	field *ast.Field,
 	fieldType types.Type,
-	locallyDefined bool,
-	prefix string,
 ) []templateStep {
 	return []templateStep{
 		{
 			template: mutateFieldTemplate,
+			data: mutateFunctionData{
+				TypeName:      structSpec.Name.Name,
+				FieldName:     field.Names[0].Name,
+				FieldTypeName: trimPackagePrefix(fieldType.String(), h.packageName),
+			},
+		},
+	}
+}
+
+func (h *handler) handleByteSlice(
+	structSpec *ast.TypeSpec,
+	field *ast.Field,
+	fieldType types.Type,
+) []templateStep {
+	return []templateStep{
+		{
+			template: mutateByteSliceTemplate,
 			data: mutateFunctionData{
 				TypeName:      structSpec.Name.Name,
 				FieldName:     field.Names[0].Name,

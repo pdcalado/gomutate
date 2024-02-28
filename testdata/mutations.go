@@ -3,6 +3,8 @@ package main
 
 import (
 	"fmt"
+	"encoding/base64"
+	"bytes"
 	"time"
 	"reflect"
 	"github.com/pdcalado/gomutate/changes"
@@ -337,6 +339,33 @@ func (m *MutatorProject) SetFinishedAt(value time.Time) bool {
 		NewValue:  fmt.Sprintf("%+v", value),
 	})
 	m.inner.FinishedAt = value
+
+	return true
+}
+
+// SetSeqID mutates the SeqID of the Project object
+func (m *MutatorProject) SetSeqID(value []byte) bool {
+	if bytes.Equal(m.inner.SeqID, value) {
+		return false
+	}
+
+	operation := changes.OperationUpdated
+	if len(m.inner.SeqID) == 0 {
+		operation = changes.OperationSet
+	} else if len(value) == 0 {
+		operation = changes.OperationCleared
+	}
+
+	oldValue := base64.StdEncoding.EncodeToString(m.inner.SeqID)
+	newValue := base64.StdEncoding.EncodeToString(value)
+
+	m.changes.Append(changes.Change{
+		FieldName: "SeqID",
+		Operation: operation,
+		OldValue:  oldValue,
+		NewValue:  newValue,
+	})
+	m.inner.SeqID = value
 
 	return true
 }
