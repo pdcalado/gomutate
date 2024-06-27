@@ -270,17 +270,23 @@ func (m *Mutator{{.TypeName}}) Set{{.FieldName}}(value {{.FieldTypeName}}) bool 
 		return false
 	}
 
+	_, isStringer := interface{}(value).(fmt.Stringer)
+
 	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.{{.FieldName}})
 
 	if value != nil {
 		operation = changes.OperationSet
-		valueStr = fmt.Sprintf("%+v", *value)
+		if !isStringer {
+			valueStr = fmt.Sprintf("%+v", *value)
+		}
 	}
 
 	if m.inner.{{.FieldName}} != nil {
-		oldValueStr = fmt.Sprintf("%+v", *m.inner.{{.FieldName}})
+		if !isStringer {
+			oldValueStr = fmt.Sprintf("%+v", *m.inner.{{.FieldName}})
+		}
 	}
 
 	m.changes.Append(changes.Change{
