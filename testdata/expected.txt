@@ -1,6 +1,6 @@
 YearOfBirth updated from '2018' to '2019'
-Address cleared, value was '{Street:Main Street Number:123 City:New York Zip:10001 Location:<nil>}'
-Address set to '{Street:Liverpool Street Number:300 City:London Zip:45001 Location:<nil>}'
+Address cleared, value was '{Main Street 123, New York 10001}'
+Address set to '{Liverpool Street 300, London 45001}'
 Vat Type updated from 'Company' to 'Company Ltd.'
 Address Street updated from 'Liverpool Street' to 'Baker Street'
 Address Location set to 'UK'

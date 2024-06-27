@@ -23,6 +23,13 @@ type Address struct {
 	Location *string
 }
 
+func (a *Address) String() string {
+	if a.Location != nil {
+		return fmt.Sprintf("{%s %d, %s %d (%s)}", a.Street, a.Number, a.City, a.Zip, *a.Location)
+	}
+	return fmt.Sprintf("{%s %d, %s %d}", a.Street, a.Number, a.City, a.Zip)
+}
+
 type Vat struct {
 	Number string
 	Type   string

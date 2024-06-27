@@ -608,17 +608,23 @@ func (m *MutatorAddress) SetLocation(value *string) bool {
 		return false
 	}
 
+	_, isStringer := interface{}(value).(fmt.Stringer)
+
 	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Location)
 
 	if value != nil {
 		operation = changes.OperationSet
-		valueStr = fmt.Sprintf("%+v", *value)
+		if !isStringer {
+			valueStr = fmt.Sprintf("%+v", *value)
+		}
 	}
 
 	if m.inner.Location != nil {
-		oldValueStr = fmt.Sprintf("%+v", *m.inner.Location)
+		if !isStringer {
+			oldValueStr = fmt.Sprintf("%+v", *m.inner.Location)
+		}
 	}
 
 	m.changes.Append(changes.Change{
@@ -643,17 +649,23 @@ func (m *MutatorAcme) SetAddress(value *Address) bool {
 		return false
 	}
 
+	_, isStringer := interface{}(value).(fmt.Stringer)
+
 	operation := changes.OperationCleared
 	valueStr := fmt.Sprintf("%+v", value)
 	oldValueStr := fmt.Sprintf("%+v", m.inner.Address)
 
 	if value != nil {
 		operation = changes.OperationSet
-		valueStr = fmt.Sprintf("%+v", *value)
+		if !isStringer {
+			valueStr = fmt.Sprintf("%+v", *value)
+		}
 	}
 
 	if m.inner.Address != nil {
-		oldValueStr = fmt.Sprintf("%+v", *m.inner.Address)
+		if !isStringer {
+			oldValueStr = fmt.Sprintf("%+v", *m.inner.Address)
+		}
 	}
 
 	m.changes.Append(changes.Change{
